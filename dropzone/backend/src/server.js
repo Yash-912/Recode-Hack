@@ -13,6 +13,9 @@ const { globalLimiter } = require('./middleware/ratelimit');
 const productRoutes = require('./routes/product');
 const checkoutRoutes = require('./routes/checkout');
 const queueRoutes = require('./routes/queue');
+const adminRoutes = require('./routes/admin');
+const waitlistRoutes = require('./routes/waitlist');
+const metricsService = require('./services/metricsService');
 
 async function startServer() {
   const app = express();
@@ -32,6 +35,15 @@ async function startServer() {
   // 4. Initialize WebSocket
   const io = initWebSocket(server);
 
+  // Attach io to app instance so routes can access it
+  app.set('io', io);
+
+  // Start metrics broadcast every second
+  setInterval(() => {
+    const metrics = metricsService.getMetrics();
+    io.to('admin').emit('metrics_tick', metrics);
+  }, 1000);
+
   // 5. Initialize Bull Queue Worker
   initCheckoutQueue(io);
 
@@ -39,6 +51,8 @@ async function startServer() {
   app.use('/api', productRoutes);
   app.use('/api', checkoutRoutes);
   app.use('/api', queueRoutes);
+  app.use('/api', waitlistRoutes);
+  app.use('/admin', adminRoutes);
 
   // 7. Start listening
   const PORT = process.env.PORT || 3000;

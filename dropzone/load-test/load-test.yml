@@ -1,0 +1,55 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    # Ramp up: 0 → 50 users over 5 seconds
+    - duration: 5
+      arrivalRate: 10
+      name: "Warm-up"
+    # Spike: 500 simultaneous users for 1 second
+    - duration: 1
+      arrivalRate: 500
+      name: "The Drop"
+    # Cool-down: 10 users over 10 seconds
+    - duration: 10
+      arrivalRate: 10
+      name: "Cool-down"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  - name: "Flash Sale Checkout"
+    flow:
+      # Step 1: Create a guest user
+      - post:
+          url: "/api/auth/guest"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+            - json: "$.userId"
+              as: "userId"
+      
+      # Step 2: Get a checkout token
+      - get:
+          url: "/api/products/{{ $processEnvironment.PRODUCT_ID }}/checkout-token"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          capture:
+            - json: "$.token"
+              as: "checkoutToken"
+      
+      # Step 3: Fire the checkout
+      - post:
+          url: "/api/checkout"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+            Idempotency-Key: "{{ $randomString(36) }}"
+            X-Checkout-Token: "{{ checkoutToken }}"
+          json:
+            productId: "{{ $processEnvironment.PRODUCT_ID }}"
+            quantity: 1
+          expect:
+            - statusCode:
+                - 202  # Accepted (queued)
+                - 409  # Already attempted
+                - 503  # Drop not started
