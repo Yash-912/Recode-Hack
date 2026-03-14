@@ -1,0 +1,31 @@
+{
+  "name": "dropzone-backend",
+  "version": "1.0.0",
+  "description": "DropZone Flash Sale Platform - Backend API",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "seed": "node src/scripts/seed.js"
+  },
+  "dependencies": {
+    "bull": "^4.12.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "ioredis": "^5.3.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.20.0",
+    "socket.io": "^4.7.4",
+    "uuid": "^9.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^8.4.0",
+    "nodemon": "^3.0.3",
+    "vitest": "^1.2.2"
+  }
+}

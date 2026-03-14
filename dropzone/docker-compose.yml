@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U dropzone -d dropzone']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dropzone
+      POSTGRES_PASSWORD: dropzone
+      POSTGRES_DB: dropzone
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://dropzone:dropzone@postgres:5432/dropzone
+      JWT_SECRET: ${JWT_SECRET:-dropzone-jwt-secret-dev}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-dropzone-admin-secret}
+      PORT: 3000
+      FRONTEND_URL: http://localhost:5173
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
