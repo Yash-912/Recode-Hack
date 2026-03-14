@@ -1,91 +1,193 @@
-const assert = require('assert');
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 
-async function runApiTest() {
-  const PRODUCT_ID = '23f0fec4-e3b9-4918-ad2c-7ca08af75daf'; // The ID from the seed script
-  const BASE_URL = 'http://localhost:3000/api';
+const Redis = require('ioredis');
+const { query, connectDB, disconnectDB } = require('../src/config/db');
 
-  try {
-    console.log('--- Starting API Integration Test ---');
+/**
+ * API Integration Tests (Vitest)
+ *
+ * Tests the full checkout flow end-to-end.
+ * Requires: backend running on localhost:3000, Redis + Postgres available.
+ *
+ * Note: These tests hit the live API, so the server must be running.
+ * Product ID is fetched dynamically from the database.
+ */
 
-    // 1. Check Health
-    console.log('\n[1] Checking Health...');
-    let res = await fetch(`${BASE_URL}/health`);
-    let data = await res.json();
-    console.log('Health:', data);
-    assert.strictEqual(data.status, 'ok', 'Health check failed');
+const BASE_URL = `http://localhost:${process.env.PORT || 3000}/api`;
 
-    // 2. Fetch Product
-    console.log(`\n[2] Fetching Product ${PRODUCT_ID}...`);
-    res = await fetch(`${BASE_URL}/products/${PRODUCT_ID}`);
-    data = await res.json();
-    console.log(`Product: ${data.name} | Stock: ${data.inventory.remaining}`);
-    assert.strictEqual(data.id, PRODUCT_ID, 'Product ID mismatch');
+let productId;
+let guestToken;
+let userId;
 
-    // 3. Create Guest User
-    console.log('\n[3] Creating Guest User...');
-    res = await fetch(`${BASE_URL}/auth/guest`, { method: 'POST' });
-    data = await res.json();
-    const guestToken = data.token;
-    const userId = data.userId;
-    console.log(`Created Guest! User ID: ${userId} | Token: ${guestToken.substring(0, 15)}...`);
-    assert(guestToken, 'Missing guest token');
+beforeAll(async () => {
+  await connectDB();
+  // Fetch the first active product instead of hardcoding
+  const { rows } = await query('SELECT id FROM products WHERE is_active = true LIMIT 1');
+  if (rows.length === 0) {
+    throw new Error('No active products found. Run `npm run seed` first.');
+  }
+  productId = rows[0].id;
+});
 
-    // 4. Get Checkout Token
-    console.log('\n[4] Requesting Checkout Token...');
-    res = await fetch(`${BASE_URL}/products/${PRODUCT_ID}/checkout-token`);
-    data = await res.json();
-    const checkoutToken = data.token;
-    console.log(`Checkout Token: ${checkoutToken}`);
-    assert(checkoutToken, 'Missing checkout token');
+afterAll(async () => {
+  await disconnectDB();
+});
 
-    // 5. Submit Checkout
-    console.log('\n[5] Submitting Checkout...');
-    const idempotencyKey = crypto.randomUUID();
-    
-    res = await fetch(`${BASE_URL}/checkout`, {
+describe('API Integration — Full Checkout Flow', () => {
+
+  it('GET /health returns ok', async () => {
+    const res = await fetch(`${BASE_URL}/health`);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.status).toBe('ok');
+    expect(data.timestamp).toBeDefined();
+  });
+
+  it('GET /products/:id returns product with inventory', async () => {
+    const res = await fetch(`${BASE_URL}/products/${productId}`);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.id).toBe(productId);
+    expect(data.name).toBeDefined();
+    expect(data.inventory).toBeDefined();
+    expect(data.inventory.remaining).toBeGreaterThanOrEqual(0);
+    expect(data.inventory.total).toBeGreaterThan(0);
+  });
+
+  it('POST /auth/guest creates guest user and returns JWT', async () => {
+    const res = await fetch(`${BASE_URL}/auth/guest`, { method: 'POST' });
+    const data = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(data.token).toBeDefined();
+    expect(data.userId).toBeDefined();
+
+    guestToken = data.token;
+    userId = data.userId;
+  });
+
+  it('GET /products/:id/checkout-token returns a short-lived token', async () => {
+    const res = await fetch(`${BASE_URL}/products/${productId}/checkout-token`);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.token).toBeDefined();
+    expect(data.expiresAt).toBeGreaterThan(Date.now());
+    expect(data.expiresIn).toBe(30000);
+  });
+
+  it('POST /checkout without Idempotency-Key returns 400', async () => {
+    const res = await fetch(`${BASE_URL}/checkout`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${guestToken}`,
-        'Idempotency-Key': idempotencyKey,
-        'X-Checkout-Token': checkoutToken
       },
-      body: JSON.stringify({
-        productId: PRODUCT_ID,
-        quantity: 1
-      })
+      body: JSON.stringify({ productId, quantity: 1 }),
     });
-    
-    data = await res.json();
-    console.log(`Checkout Response (Status ${res.status}):`, data);
-    
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.error).toBe('missing_idempotency_key');
+  });
+
+  it('POST /checkout without auth returns 401', async () => {
+    const res = await fetch(`${BASE_URL}/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': crypto.randomUUID(),
+      },
+      body: JSON.stringify({ productId, quantity: 1 }),
+    });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('POST /checkout with valid auth returns 202 (queued)', async () => {
+    // Get a checkout token first
+    const tokenRes = await fetch(`${BASE_URL}/products/${productId}/checkout-token`);
+    const tokenData = await tokenRes.json();
+
+    const res = await fetch(`${BASE_URL}/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${guestToken}`,
+        'Idempotency-Key': crypto.randomUUID(),
+        'X-Checkout-Token': tokenData.token,
+      },
+      body: JSON.stringify({ productId, quantity: 1 }),
+    });
+    const data = await res.json();
+
+    // Could be 202 (queued) or 503 (drop not started) depending on timing
+    expect([202, 503]).toContain(res.status);
+
     if (res.status === 202) {
-      console.log('✅ Checkout successfully queued!');
-      
-      const jobId = data.jobId;
-      
-      // 6. Poll Queue Status
-      console.log(`\n[6] Polling Queue Status for Job ${jobId}...`);
-      await new Promise(resolve => setTimeout(resolve, 500)); // wait a bit for worker
-      
-      res = await fetch(`${BASE_URL}/queue-status/${jobId}`);
-      data = await res.json();
-      console.log('Queue Status Response:', data);
+      expect(data.jobId).toBeDefined();
+      expect(data.position).toBeDefined();
 
-      if (data.status === 'completed' || data.success) {
-         console.log('✅ Worker processed job successfully!');
-      } else {
-         console.log('⚠️ Worker result pending or sold out:', data);
-      }
-    } else {
-      console.log('❌ Checkout failed:', data);
+      // Poll queue status
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const statusRes = await fetch(`${BASE_URL}/queue-status/${data.jobId}`);
+      const statusData = await statusRes.json();
+      expect(statusData.status).toBeDefined();
     }
+  });
 
-    console.log('\n--- API Integration Test Completed ---');
+  it('POST /checkout with duplicate idempotency key returns cached 202', async () => {
+    const idempotencyKey = crypto.randomUUID();
 
-  } catch (err) {
-    console.error('Test Failed:', err);
-  }
-}
+    // Create a new guest to avoid per-user dedup
+    const guestRes = await fetch(`${BASE_URL}/auth/guest`, { method: 'POST' });
+    const guest = await guestRes.json();
 
-runApiTest();
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${guest.token}`,
+      'Idempotency-Key': idempotencyKey,
+    };
+    const body = JSON.stringify({ productId, quantity: 1 });
+
+    const res1 = await fetch(`${BASE_URL}/checkout`, { method: 'POST', headers, body });
+    const res2 = await fetch(`${BASE_URL}/checkout`, { method: 'POST', headers, body });
+
+    // Both should return the same status (either 202 or 503)
+    expect(res1.status).toBe(res2.status);
+
+    if (res1.status === 202) {
+      const data1 = await res1.json();
+      const data2 = await res2.json();
+      expect(data1.jobId).toBe(data2.jobId);
+    }
+  });
+
+  it('POST /checkout with per-user dedup returns 409', async () => {
+    // The first guest user already attempted a checkout above
+    const res = await fetch(`${BASE_URL}/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${guestToken}`,
+        'Idempotency-Key': crypto.randomUUID(), // new key
+      },
+      body: JSON.stringify({ productId, quantity: 1 }),
+    });
+
+    // Should be 409 (already_attempted) since this user already checked out
+    // OR 503 if the drop hasn't started
+    expect([409, 503]).toContain(res.status);
+  });
+
+  it('GET /queue-status/:jobId returns 404 for nonexistent job', async () => {
+    const res = await fetch(`${BASE_URL}/queue-status/999999`);
+    const data = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(data.error).toBe('not_found');
+  });
+
+});

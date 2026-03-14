@@ -1,8 +1,8 @@
 # DropZone — Build Roadmap
 
 **Reference:** [dropzone_prd.md](file:///C:/Users/yashd/.gemini/antigravity/brain/28e9e0c1-3438-471e-b0e4-eacfb9205f7a/dropzone_prd.md)  
-**Total Phases:** 8  
-**Total Steps:** 41  
+**Total Phases:** 9  
+**Total Steps:** 52  
 
 > [!IMPORTANT]
 > Each phase ends with a **✅ Gate Check** — a concrete verification step. **Do NOT move to the next phase** until you pass the gate check. This prevents building on a broken foundation.
@@ -22,6 +22,7 @@ graph LR
     P5 --> P7["Phase 7\nAdmin Panel"]
     P6 --> P7
     P7 --> P8["Phase 8\nPolish + Demo"]
+    P8 --> P9["Phase 9\nArch Improvements"]
 ```
 
 ---
@@ -55,7 +56,7 @@ graph LR
    ```
 4. Copy `.env.example` to `.env` (gitignored)
 5. Create `backend/package.json` with dependencies:
-   - **Runtime:** `fastify`, `@fastify/cors`, `@fastify/rate-limit`, `ioredis`, `bull`, `pg`, `socket.io`, `jsonwebtoken`, `zod`, `uuid`, `dotenv`
+   - **Runtime:** `Express`, `@Express/cors`, `@Express/rate-limit`, `ioredis`, `bull`, `pg`, `socket.io`, `jsonwebtoken`, `zod`, `uuid`, `dotenv`
    - **Dev:** `vitest`, `@faker-js/faker`, `nodemon`
    - **Scripts:** `"start"`, `"dev"` (nodemon), `"test"` (vitest), `"seed"`
 6. Run `docker-compose up -d redis postgres` to start infrastructure
@@ -147,7 +148,7 @@ npm test
 
 **Goal:** `POST /api/checkout` accepts a request, enqueues it, worker processes it through the gate, writes order to Postgres. Full pipeline working end-to-end via curl.
 
-### Step 2.1 — Fastify Plugins
+### Step 2.1 — Express Plugins
 
 **Files to create:**
 - `dropzone/backend/src/plugins/redis.js`
@@ -157,15 +158,15 @@ npm test
 - `dropzone/backend/src/plugins/websocket.js` *(stub — full implementation in Phase 3)*
 
 **What to do:**
-1. **redis.js** — Create `ioredis` client from `REDIS_URL`. Register as Fastify plugin. Decorate `fastify.redis`. Add `onClose` hook to disconnect.
-2. **postgres.js** — Create `pg.Pool` from `DATABASE_URL`. Register as plugin. Decorate `fastify.pg` with a `query(text, params)` helper. Add `onClose` hook to end pool.
+1. **redis.js** — Create `ioredis` client from `REDIS_URL`. Register as Express plugin. Decorate `Express.redis`. Add `onClose` hook to disconnect.
+2. **postgres.js** — Create `pg.Pool` from `DATABASE_URL`. Register as plugin. Decorate `Express.pg` with a `query(text, params)` helper. Add `onClose` hook to end pool.
 3. **auth.js** — Register as plugin. Add utility methods:
-   - `fastify.jwt.sign(payload)` — signs JWT with `JWT_SECRET`, 24h expiry
-   - `fastify.jwt.verify(token)` — verifies and decodes
-   - `fastify.authenticate` preHandler — extracts `Authorization: Bearer <token>`, verifies, sets `request.user = { userId }`
-   - `fastify.verifyAdmin` preHandler — checks `X-Admin-Token` header matches `ADMIN_TOKEN` env var
-4. **ratelimit.js** — Register `@fastify/rate-limit` with global config (100 req/s per IP). Export a `checkoutRateLimit` config object for route-level override (5 req/s per IP).
-5. **websocket.js** — For now, just a stub that creates a Socket.io server and decorates `fastify.io`. Full room/event logic in Phase 3.
+   - `Express.jwt.sign(payload)` — signs JWT with `JWT_SECRET`, 24h expiry
+   - `Express.jwt.verify(token)` — verifies and decodes
+   - `Express.authenticate` preHandler — extracts `Authorization: Bearer <token>`, verifies, sets `request.user = { userId }`
+   - `Express.verifyAdmin` preHandler — checks `X-Admin-Token` header matches `ADMIN_TOKEN` env var
+4. **ratelimit.js** — Register `@Express/rate-limit` with global config (100 req/s per IP). Export a `checkoutRateLimit` config object for route-level override (5 req/s per IP).
+5. **websocket.js** — For now, just a stub that creates a Socket.io server and decorates `Express.io`. Full room/event logic in Phase 3.
 
 ---
 
@@ -176,13 +177,13 @@ npm test
 
 **What to do:**
 1. Import `dotenv/config` at the top
-2. Create Fastify instance with `logger: true`
+2. Create Express instance with `logger: true`
 3. Register plugins in order: redis → postgres → auth → ratelimit → websocket
-4. After plugins ready: call `loadScript(fastify.redis)` to load the Lua script into Redis
+4. After plugins ready: call `loadScript(Express.redis)` to load the Lua script into Redis
 5. Register all route files (product, checkout, queue, waitlist, admin)
 6. Set up graceful shutdown handler (`SIGTERM`, `SIGINT`)
 7. Listen on `PORT` (default 3000)
-8. Export the fastify instance (for testing)
+8. Export the Express instance (for testing)
 
 ---
 
@@ -240,7 +241,7 @@ npm test
 **What to do:**
 1. **checkout.js** — Add `POST /api/checkout` with this pipeline:
    1. Zod validate body: `{ productId: z.string().uuid(), quantity: z.number().int().min(1).max(1) }`
-   2. `fastify.authenticate` preHandler — extract userId from JWT
+   2. `Express.authenticate` preHandler — extract userId from JWT
    3. Check `Idempotency-Key` header exists (400 if missing)
    4. Check Redis `idempotency:{key}` — if exists, return cached response
    5. Check Redis `checkout_attempt:{userId}:{productId}` — if exists, return 409 `already_attempted`
@@ -342,7 +343,7 @@ If all of the above work, Phase 2 is complete.
 - `dropzone/backend/src/workers/checkoutWorker.js`
 
 **What to do:**
-1. Pass the Socket.io instance (`fastify.io`) to the worker
+1. Pass the Socket.io instance (`Express.io`) to the worker
 2. After a successful purchase:
    - `io.to('product:' + productId).emit('inventory_update', { productId, remaining, total })`
    - `io.to('user:' + userId).emit('checkout_result', { success: true, orderId, remaining })`
@@ -853,6 +854,199 @@ No files to create. This is pure practice.
 - [ ] README is clear and complete
 - [ ] Demo takes < 7 minutes
 - [ ] UI looks **premium**, not prototypey
+
+---
+
+## Phase 9 — Architectural Improvements
+
+**Goal:** Five post-MVP improvements that enhance performance, durability, security, and UX. These build on the completed Phase 1–8 foundation. **The Lua gate script is never modified.**
+
+> [!IMPORTANT]
+> Build order matters. Improvement 1 (Worker Pools) must be completed first — it settles the worker structure that Improvements 2, 3, and 5 modify. Improvement 4 (Bot Defense) is independent and can be built in parallel.
+
+### Step 9.1 — Per-Product Worker Pools (Improvement 1)
+
+**Files to create:**
+- `dropzone/backend/src/workers/workerManager.js`
+
+**Files to update:**
+- `dropzone/backend/src/routes/admin.js` (add drop creation + worker management endpoints)
+- `dropzone/backend/src/routes/checkout.js` (route to `checkout-queue:{productId}`)
+- `dropzone/backend/src/routes/queue.js` (resolve jobs from product-specific queues)
+- `dropzone/backend/src/server.js` (register admin routes, init worker manager)
+
+**What to do:**
+1. Create `workerManager.js` with three functions:
+   - `spawnWorker(productId)` — creates `new Queue('checkout-queue:{productId}')`, registers processor with concurrency 1, adds to `active_queues` Redis SET
+   - `destroyWorker(productId)` — drains queue, closes worker, removes from SET
+   - `getWorker(productId)` — returns existing queue or throws
+2. Update `checkout.js` enqueue: check for product-specific queue via `workerManager.getWorker(productId)`, fall back to global `checkout-queue` if none exists
+3. Add admin endpoints:
+   - `POST /api/admin/drop` — creates product, seeds inventory, calls `spawnWorker(productId)`
+   - `DELETE /api/admin/drop/:productId` — calls `destroyWorker(productId)`
+   - `GET /api/admin/workers` — returns active queues with `waiting`/`active`/`completed` counts
+4. Update `queue.js` to resolve jobs from the correct per-product queue
+
+**New Redis key:** `active_queues` (SET, managed lifecycle — no TTL needed, cleaned up on destroy)
+
+---
+
+### Step 9.2 — Transactional Outbox Pattern (Improvement 2)
+
+**Files to create:**
+- `dropzone/db/migrations/007_create_outbox.sql`
+- `dropzone/backend/src/workers/outboxProcessor.js`
+
+**Files to update:**
+- `dropzone/backend/src/workers/checkoutWorker.js` (remove direct `io.emit`, add transactional outbox insert)
+- `dropzone/backend/src/server.js` (start outbox processor)
+
+**What to do:**
+1. Create migration `007_create_outbox.sql`:
+   - `outbox` table with columns: `id` (UUID), `event_type` (TEXT), `payload` (JSONB), `status` (TEXT, default 'pending'), `created_at`, `processed_at`
+   - Partial index: `CREATE INDEX idx_outbox_pending ON outbox(status, created_at) WHERE status = 'pending'`
+2. Update `checkoutWorker.js`:
+   - Remove all direct `io.emit()` calls
+   - After Redis gate success, wrap in Postgres transaction:
+     ```
+     BEGIN
+       INSERT INTO orders (...) RETURNING id → orderId
+       INSERT INTO outbox (event_type, payload) VALUES ('order.confirmed', {orderId, userId, productId, remaining})
+     COMMIT
+     ```
+   - On transaction failure: compensating `redis.incrby('inventory:{productId}', 1)` to restore stock
+3. Create `outboxProcessor.js`:
+   - `setInterval` every 500ms
+   - `SELECT * FROM outbox WHERE status = 'pending' ORDER BY created_at LIMIT 20 FOR UPDATE SKIP LOCKED`
+   - For each row: emit the corresponding Socket.io event, then `UPDATE outbox SET status = 'processed', processed_at = NOW()`
+4. Start the outbox processor in `server.js` after plugin registration
+
+---
+
+### Step 9.3 — Multi-Layer Bot Defense (Improvement 4)
+
+**Files to create:**
+- `dropzone/backend/src/services/powService.js`
+- `dropzone/backend/src/middleware/botDefense.js`
+- `dropzone/public/pow-solver.js`
+
+**Files to update:**
+- `dropzone/backend/src/routes/checkout.js` (add PoW to guest auth, add bot defense middleware, add junk-job dedup)
+
+**What to do:**
+1. Create `powService.js`:
+   - `createChallenge()` — generates random 32-byte hex puzzle, stores in Redis with 60s TTL, returns `{ challengeId, puzzle, difficulty: 4 }`
+   - `validateChallenge(challengeId, nonce)` — retrieves puzzle from Redis, computes `SHA256(puzzle + nonce)`, verifies it starts with `'0000'` (4 leading zeros), deletes key on success
+2. Update `POST /api/auth/guest` — now requires `{ challengeId, nonce }` body. Validates PoW before issuing JWT
+3. Add `POST /api/auth/challenge` endpoint — calls `powService.createChallenge()`
+4. Create `botDefense.js` middleware:
+   - **Velocity check:** `ZADD behavior:{userId} ts ts`, `ZREMRANGEBYSCORE behavior:{userId} -inf (now - 10000)`, if `ZCARD > 3` → 429 suspicious
+   - **Reaction time:** if `(Date.now() - dropUnlockAt) < 200ms` → 429 bot detected
+5. Add junk-job dedup in checkout enqueue:
+   - Before enqueuing: `SISMEMBER queued_users:{productId}:{dropId} userId` → if true, 409 `already_queued`
+   - Otherwise: `SADD` with TTL = drop duration + 300s
+6. Create `pow-solver.js` (vanilla JS for frontend):
+   - Iterates nonces until `SHA256(puzzle + nonce)` has 4 leading zero hex chars
+   - Exposes `solvePow(puzzle, difficulty)` function
+
+**New Redis keys:** `pow_challenge:{challengeId}` (60s TTL), `behavior:{userId}` (30s TTL), `queued_users:{productId}:{dropId}` (drop duration + 300s TTL)
+
+---
+
+### Step 9.4 — Payment Layer with Idempotent Webhooks (Improvement 3)
+
+**Files to create:**
+- `dropzone/db/migrations/008_payment_status.sql`
+- `dropzone/backend/src/routes/webhooks.js`
+- `dropzone/backend/src/workers/paymentExpiryListener.js`
+
+**Files to update:**
+- `dropzone/backend/src/workers/checkoutWorker.js` (create orders as `pending_payment`, set payment timeout)
+- `dropzone/backend/src/services/orderService.js` (add `updateOrderStatus()`)
+- `dropzone/backend/src/server.js` (register webhook routes, start expiry listener)
+- `dropzone/.env.example` (add `PAYMENT_PROVIDER`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_SECRET_KEY`)
+
+**What to do:**
+1. Create migration `008_payment_status.sql`:
+   - Widen `orders.status` CHECK constraint to include `pending_payment`, `payment_failed`, `expired`
+   - Add `payment_provider` (VARCHAR 20) and `payment_id` (VARCHAR 255) columns
+2. Update `checkoutWorker.js`:
+   - On gate pass, insert order with `status = 'pending_payment'`
+   - Set Redis key `payment_timeout:{orderId}` with 120s TTL
+3. Create `webhooks.js` route:
+   - `POST /api/webhooks/stripe` — verify `stripe-signature` header using `STRIPE_WEBHOOK_SECRET`, check idempotency via `webhook_processed:{eventId}`, process `payment_intent.succeeded` / `payment_intent.payment_failed`
+   - `POST /api/webhooks/mock/confirm` — for demo: instantly confirms order
+   - `POST /api/webhooks/mock/fail` — for demo: fails order, releases inventory
+4. Create `paymentExpiryListener.js`:
+   - Subscribe to Redis keyspace notifications (`__keyevent@0__:expired`)
+   - On expiry of `payment_timeout:{orderId}`: check if order is still `pending_payment`, if so → update to `expired`, `INCRBY inventory:{productId} 1`
+   - Requires Redis config: `notify-keyspace-events Ex` (add to `docker-compose.yml` Redis command)
+5. Add `updateOrderStatus(pg, orderId, status)` to `orderService.js`
+
+**New Redis keys:** `payment_timeout:{orderId}` (120s TTL), `webhook_processed:{eventId}` (86400s TTL)
+
+---
+
+### Step 9.5 — Adaptive Queue ETA (Improvement 5)
+
+**Files to create:**
+- `dropzone/backend/src/services/queueStats.js`
+
+**Files to update:**
+- `dropzone/backend/src/workers/checkoutWorker.js` (record job duration)
+- `dropzone/backend/src/routes/checkout.js` (return adaptive ETA)
+- `dropzone/backend/src/routes/queue.js` (recalculate ETA on poll)
+- `dropzone/backend/src/server.js` (start periodic `eta_update` broadcast)
+
+**What to do:**
+1. Update `checkoutWorker.js`:
+   - On job completion, calculate `duration = Date.now() - job.data.enqueuedAt`
+   - `LPUSH job_durations:{productId} duration` + `LTRIM job_durations:{productId} 0 49`
+   - Set TTL: `EXPIRE job_durations:{productId} 3600`
+2. Create `queueStats.js`:
+   - `getStats(redis, productId)` — `LRANGE job_durations:{productId} 0 -1`, sort, compute p50 (median) and p95 (95th percentile)
+   - If fewer than 5 samples → return `{ p50: 80, p95: 200, confidence: 'low' }` (cold start defaults)
+   - Otherwise → return `{ p50, p95, confidence: 'high' }`
+3. Update checkout enqueue response:
+   - Call `queueStats.getStats()` to calculate `estimatedWait = position × p50`, `worstCase = position × p95`
+   - Return `{ jobId, position, estimatedWait, worstCase, confidence }`
+4. Update `queue.js` — recalculate current position and adaptive ETA on poll (not stale enqueue-time values)
+5. Add `setInterval` in `server.js` (every 2 seconds):
+   - For each active product queue: compute stats, emit `eta_update` event to product room
+   - `io.to('product:' + productId).emit('eta_update', { productId, p50, p95, queueDepth })`
+
+**New Redis key:** `job_durations:{productId}` (list, 3600s TTL)
+
+---
+
+### ✅ Gate Check for Phase 9
+
+**Per-Product Workers:**
+- [ ] Create a drop via `POST /admin/drop` → worker spawns
+- [ ] Checkout routes to the correct product-specific queue
+- [ ] `GET /admin/workers` shows queue stats
+- [ ] Destroying a drop drains the queue cleanly
+
+**Transactional Outbox:**
+- [ ] Kill the worker process mid-checkout → inventory is restored (compensating transaction fires)
+- [ ] WebSocket events arrive via outbox processor (not direct from worker)
+- [ ] `outbox` table shows processed events
+
+**Bot Defense:**
+- [ ] `POST /auth/guest` without PoW solution → 400
+- [ ] Rapidly firing 5+ checkouts within 10 seconds → velocity check triggers
+- [ ] Duplicate enqueue for same user+product → 409 `already_queued`
+
+**Payment Layer:**
+- [ ] Order created as `pending_payment` after gate pass
+- [ ] Mock webhook confirms order → status becomes `confirmed`
+- [ ] Payment timeout (120s) → order expires, inventory slot released
+- [ ] Duplicate webhook with same event ID → ignored (idempotent)
+
+**Adaptive ETA:**
+- [ ] After 5+ checkouts, `estimatedWait` and `worstCase` reflect actual durations
+- [ ] `eta_update` WebSocket events arrive every 2 seconds
+- [ ] Cold start returns `confidence: 'low'` with 80ms default
 
 ---
 

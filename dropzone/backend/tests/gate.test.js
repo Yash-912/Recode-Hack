@@ -1,11 +1,10 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
-const { describe, it, before, after, beforeEach } = require('node:test');
-const assert = require('node:assert');
+
 const Redis = require('ioredis');
 const { loadScript, attemptPurchase, naivePurchase, seedInventory } = require('../src/services/inventoryGate');
 
 /**
- * Gate Unit Tests
+ * Gate Unit Tests (Vitest)
  *
  * These tests prove the core thesis of DropZone:
  * - Protected mode (Lua script) is atomic — stock NEVER goes negative
@@ -16,12 +15,12 @@ const { loadScript, attemptPurchase, naivePurchase, seedInventory } = require('.
 
 let redis;
 
-before(async () => {
+beforeAll(async () => {
   redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
   await loadScript(redis);
 });
 
-after(async () => {
+afterAll(async () => {
   await redis.quit();
 });
 
@@ -43,12 +42,12 @@ describe('Atomic Gate — Core Tests', () => {
 
     const result = await attemptPurchase(redis, productId, 1);
 
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(result.remaining, 9);
+    expect(result.success).toBe(true);
+    expect(result.remaining).toBe(9);
 
     // Verify Redis counter
     const stock = await redis.get(`inventory:${productId}`);
-    assert.strictEqual(parseInt(stock), 9);
+    expect(parseInt(stock)).toBe(9);
   });
 
   it('Test 2: Decrement when stock=0 returns sold_out', async () => {
@@ -57,12 +56,12 @@ describe('Atomic Gate — Core Tests', () => {
 
     const result = await attemptPurchase(redis, productId, 1);
 
-    assert.strictEqual(result.success, false);
-    assert.strictEqual(result.reason, 'sold_out');
+    expect(result.success).toBe(false);
+    expect(result.reason).toBe('sold_out');
 
     // Counter should still be 0, not negative
     const stock = await redis.get(`inventory:${productId}`);
-    assert.strictEqual(parseInt(stock), 0);
+    expect(parseInt(stock)).toBe(0);
   });
 
   it('Test 3: Decrement when key does not exist returns not_found', async () => {
@@ -71,8 +70,8 @@ describe('Atomic Gate — Core Tests', () => {
 
     const result = await attemptPurchase(redis, productId, 1);
 
-    assert.strictEqual(result.success, false);
-    assert.strictEqual(result.reason, 'not_found');
+    expect(result.success).toBe(false);
+    expect(result.reason).toBe('not_found');
   });
 
   it('Test 4 [CRITICAL]: 1000 concurrent attempts against stock=100 — exactly 100 succeed', async () => {
@@ -106,12 +105,12 @@ describe('Atomic Gate — Core Tests', () => {
     const soldOuts = results.filter(r => r.reason === 'sold_out');
 
     // THE ASSERTIONS THAT MATTER:
-    assert.strictEqual(successes.length, STOCK);                            // Exactly 100 succeeded
-    assert.strictEqual(soldOuts.length, CONCURRENT_REQUESTS - STOCK);      // Exactly 900 rejected
+    expect(successes.length).toBe(STOCK);                            // Exactly 100 succeeded
+    expect(soldOuts.length).toBe(CONCURRENT_REQUESTS - STOCK);      // Exactly 900 rejected
 
     // Final counter must be EXACTLY 0 — never negative
     const finalStock = parseInt(await redis.get(`inventory:${productId}`));
-    assert.strictEqual(finalStock, 0);
+    expect(finalStock).toBe(0);
 
     console.log(`\n  ✅ ATOMICITY PROVEN:`);
     console.log(`     ${CONCURRENT_REQUESTS} concurrent requests, stock=${STOCK}`);
@@ -159,7 +158,7 @@ describe('Atomic Gate — Core Tests', () => {
     // Either we got more successes than stock, or stock went negative
     // (Both prove the race condition; the exact behavior depends on timing)
     const hasOversold = successes.length > STOCK || finalStock < 0;
-    assert.strictEqual(hasOversold, true);
+    expect(hasOversold).toBe(true);
   });
 
 });
@@ -177,9 +176,9 @@ describe('Inventory Gate — Utility Tests', () => {
     const totalStock = await redis.get(`inventory:${productId}:total`);
     const unlockAt = await redis.get(`drop:${productId}:unlock_at`);
 
-    assert.strictEqual(parseInt(currentStock), stock);
-    assert.strictEqual(parseInt(totalStock), stock);
-    assert.strictEqual(parseInt(unlockAt), dropTime);
+    expect(parseInt(currentStock)).toBe(stock);
+    expect(parseInt(totalStock)).toBe(stock);
+    expect(parseInt(unlockAt)).toBe(dropTime);
   });
 
   it('attemptPurchase with qty=3 decrements by 3', async () => {
@@ -188,8 +187,8 @@ describe('Inventory Gate — Utility Tests', () => {
 
     const result = await attemptPurchase(redis, productId, 3);
 
-    assert.strictEqual(result.success, true);
-    assert.strictEqual(result.remaining, 7);
+    expect(result.success).toBe(true);
+    expect(result.remaining).toBe(7);
   });
 
   it('attemptPurchase with qty=5 against stock=3 returns sold_out', async () => {
@@ -198,12 +197,12 @@ describe('Inventory Gate — Utility Tests', () => {
 
     const result = await attemptPurchase(redis, productId, 5);
 
-    assert.strictEqual(result.success, false);
-    assert.strictEqual(result.reason, 'sold_out');
+    expect(result.success).toBe(false);
+    expect(result.reason).toBe('sold_out');
 
     // Stock unchanged
     const stock = await redis.get(`inventory:${productId}`);
-    assert.strictEqual(parseInt(stock), 3);
+    expect(parseInt(stock)).toBe(3);
   });
 
 });

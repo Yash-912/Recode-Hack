@@ -136,7 +136,7 @@ in front of judges is the entire pitch.
 ### Backend
 | Technology | Purpose | Why |
 |---|---|---|
-| Node.js 20 + Fastify | API server | Fastest Node HTTP framework, handles concurrency well |
+| Node.js 20 + Express | API server | Fastest Node HTTP framework, handles concurrency well |
 | Redis 7 | Atomic counter + queue backend | Lua scripts are single-threaded and atomic by design |
 | Bull | Job queue | Battle-tested Redis-backed queue, great observability |
 | PostgreSQL 15 | Persistent data store | ACID transactions for order records |
@@ -174,7 +174,7 @@ in front of judges is the entire pitch.
 └─────────┼────────────────┼──────────────────┼───────────┘
           │ HTTP + WS       │ HTTP             │ HTTP
 ┌─────────▼────────────────▼──────────────────▼───────────┐
-│                     API LAYER (Fastify)                  │
+│                     API LAYER (Express)                  │
 │  ┌──────────────────┐  ┌────────────────────────────┐    │
 │  │  Rate Limiter    │  │  JWT Auth Middleware        │    │
 │  │  5 req/s per IP  │  │  Guest tokens for drop page │    │
@@ -304,11 +304,11 @@ Under concurrent load, this will drive the counter negative. That is intentional
 
 ## 7. Module 2 — API Layer & Rate Limiting
 
-### Fastify Setup
+### Express Setup
 
 ```
 src/
-  server.js          — Fastify instance, plugin registration, listen
+  server.js          — Express instance, plugin registration, listen
   plugins/
     redis.js         — Redis connection (ioredis), shared instance
     postgres.js      — pg pool, shared instance
@@ -1026,7 +1026,7 @@ This is the most important step. Do not move on until the gate is proven to work
 ### Hours 3–4: Backend Core
 **Goal: POST /checkout returns 202 with job ID**
 
-- [ ] Fastify server with basic routes
+- [ ] Express server with basic routes
 - [ ] Bull queue setup with checkout worker
 - [ ] Worker calls the Lua gate, writes to Postgres on success
 - [ ] JWT auth (simple, use a library — this is not your innovation)
@@ -1035,7 +1035,7 @@ This is the most important step. Do not move on until the gate is proven to work
 ### Hours 5–6: Real-Time Layer
 **Goal: Inventory updates appear in browser console**
 
-- [ ] Socket.io attached to Fastify server
+- [ ] Socket.io attached to Express server
 - [ ] Worker emits `inventory_update` and `checkout_result` events
 - [ ] Frontend connects to Socket.io, logs events
 - [ ] `GET /queue-status/:jobId` working
@@ -1361,16 +1361,94 @@ dropzone/
 │   ├── load-test.yml               ← Artillery config
 │   └── concurrent-test.js          ← fallback Node script
 │
+├── public/
+│   └── pow-solver.js               ← [NEW] client-side PoW solver
+│
 └── db/
     └── migrations/
         ├── 001_create_products.sql
         ├── 002_create_users.sql
         ├── 003_create_orders.sql
         ├── 004_create_waitlist.sql
-        └── 005_create_inventory_log.sql
+        ├── 005_create_inventory_log.sql
+        ├── 007_create_outbox.sql    ← [NEW] transactional outbox
+        └── 008_payment_status.sql   ← [NEW] payment lifecycle
 ```
 
 ---
 
+## Architectural Improvements (Post-MVP)
+
+> These 5 improvements are implemented after the base platform (Phases 1–8) is working. Full specifications are in the PRD (Section 17) and roadmap (Phase 9).
+
+### Overview
+
+| # | Improvement | What It Solves | Key New File |
+|---|-------------|---------------|--------------|
+| 1 | **Per-Product Worker Pools** | Single-worker bottleneck — all products share one queue | `workerManager.js` |
+| 2 | **Transactional Outbox** | Redis-Postgres durability gap — crash loses inventory | `outboxProcessor.js` |
+| 3 | **Payment Layer** | No payment step — orders confirmed without payment | `webhooks.js`, `paymentExpiryListener.js` |
+| 4 | **Bot Defense** | Instant guest tokens — bots exhaust inventory | `powService.js`, `botDefense.js` |
+| 5 | **Adaptive ETA** | Static 50ms estimate — wildly inaccurate under load | `queueStats.js` |
+
+### New Backend Files
+
+```
+src/
+├── workers/
+│   ├── workerManager.js          ← [IMP 1] per-product queue lifecycle
+│   ├── outboxProcessor.js        ← [IMP 2] polls outbox, emits WS events
+│   └── paymentExpiryListener.js  ← [IMP 3] Redis keyspace notification listener
+├── services/
+│   ├── powService.js             ← [IMP 4] PoW challenge generation + validation
+│   └── queueStats.js             ← [IMP 5] rolling p50/p95 duration stats
+├── middleware/
+│   └── botDefense.js             ← [IMP 4] velocity check + reaction time check
+└── routes/
+    ├── admin.js                   ← [IMP 1] drop management, worker status
+    └── webhooks.js                ← [IMP 3] Stripe/mock payment webhooks
+```
+
+### New Redis Keys
+
+| Key | TTL | Improvement | Purpose |
+|-----|-----|-------------|---------|
+| `active_queues` | managed | 1 | Per-product queue registry |
+| `pow_challenge:{challengeId}` | 60s | 4 | PoW puzzle storage |
+| `behavior:{userId}` | 30s | 4 | Checkout velocity tracking |
+| `queued_users:{productId}:{dropId}` | drop + 300s | 4 | Junk-job dedup |
+| `payment_timeout:{orderId}` | 120s | 3 | Payment window trigger |
+| `webhook_processed:{eventId}` | 86400s | 3 | Webhook idempotency |
+| `job_durations:{productId}` | 3600s | 5 | Rolling job duration samples |
+
+### New API Endpoints
+
+| Method | Path | Improvement |
+|--------|------|-------------|
+| `POST` | `/api/admin/drop` | 1 |
+| `DELETE` | `/api/admin/drop/:productId` | 1 |
+| `GET` | `/api/admin/workers` | 1 |
+| `POST` | `/api/auth/challenge` | 4 |
+| `POST` | `/api/webhooks/stripe` | 3 |
+| `POST` | `/api/webhooks/mock/confirm` | 3 |
+| `POST` | `/api/webhooks/mock/fail` | 3 |
+
+### Implementation Order
+
+```
+1. Worker Pools → 2. Outbox → 3. Bot Defense (parallel) → 4. Payments → 5. Adaptive ETA
+```
+
+### Constraints
+
+- **Lua script untouched** — atomic gate never modified
+- **Additive migrations** — new tables/columns only
+- **All Redis keys have TTLs** — no unbounded growth
+- **Backward-compatible queues** — global `checkout-queue` still works as fallback
+- **Zod validation** on every new endpoint
+
+---
+
 *Built for The Midnight Product Drop — PS 2*
-*Version 1.0 — Hackathon Edition*
+*Version 2.0 — Hackathon Edition + Architectural Improvements*
+

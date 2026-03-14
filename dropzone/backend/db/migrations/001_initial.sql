@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS products (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
     price_paise INTEGER NOT NULL,
@@ -11,14 +11,14 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS orders (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) NOT NULL,
     product_id UUID REFERENCES products(id) NOT NULL,
     status VARCHAR(50) NOT NULL CHECK (status IN ('confirmed', 'cancelled', 'refunded')),
@@ -32,7 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_product_id ON orders(product_id);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 
 CREATE TABLE IF NOT EXISTS waitlist (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) NOT NULL,
     product_id UUID REFERENCES products(id) NOT NULL,
     position INTEGER NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS waitlist (
 CREATE INDEX IF NOT EXISTS idx_waitlist_product_position ON waitlist(product_id, position);
 
 CREATE TABLE IF NOT EXISTS checkout_attempts (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) NOT NULL,
     product_id UUID REFERENCES products(id) NOT NULL,
     result VARCHAR(50) NOT NULL CHECK (result IN ('confirmed', 'sold_out', 'rate_limited', 'error')),

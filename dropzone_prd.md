@@ -93,7 +93,7 @@ DropZone solves every one of these.
 └─────────┼────────────────┼──────────────────┼───────────┘
           │ HTTP + WS       │ HTTP             │ HTTP
 ┌─────────▼────────────────▼──────────────────▼───────────┐
-│                     API LAYER (Fastify)                  │
+│                     API LAYER (Express)                  │
 │  ┌──────────────────┐  ┌────────────────────────────┐    │
 │  │  Rate Limiter    │  │  JWT Auth Middleware        │    │
 │  │  5 req/s per IP  │  │  Guest tokens for drop page │    │
@@ -148,7 +148,7 @@ Steps 1–7 same. Gate returns `-2` → **sold out**. Worker broadcasts `sold_ou
 
 | Technology | Purpose | Why This Choice |
 |---|---|---|
-| **Node.js 20** + **Fastify** | API server | Fastest Node HTTP framework, handles concurrency well |
+| **Node.js 20** + **Express** | API server | Fastest Node HTTP framework, handles concurrency well |
 | **Redis 7** | Atomic counter + queue backend | Lua scripts are single-threaded and atomic by design |
 | **Bull** | Job queue | Battle-tested Redis-backed queue with great observability |
 | **PostgreSQL 15** | Persistent data store | ACID transactions for order records |
@@ -157,7 +157,7 @@ Steps 1–7 same. Gate returns `-2` → **sold out**. Worker broadcasts `sold_ou
 | **ioredis** | Redis client | Required for Bull, supports `EVALSHA` |
 | **pg** | PostgreSQL client | Lightweight, pool-based Postgres driver |
 | **jsonwebtoken** | Auth | JWT signing/verification for guest + admin tokens |
-| **@fastify/rate-limit** | Rate limiting | Fastify-native rate limiting plugin |
+| **@Express/rate-limit** | Rate limiting | Express-native rate limiting plugin |
 | **uuid** | ID generation | For idempotency keys and checkout tokens |
 | **dotenv** | Environment config | Load `.env` variables |
 
@@ -640,7 +640,7 @@ A simple script using `Promise.all` with 500 `fetch` calls for environments wher
 
 | # | File Path | What It Does |
 |---|-----------|-------------|
-| 1 | `dropzone/docker-compose.yml` | Defines 4 services — Redis 7, PostgreSQL 15, backend (Node.js/Fastify), and frontend (React/Vite) — with proper networking, volume mounts, health checks, and environment variable injection for single-command `docker-compose up` startup |
+| 1 | `dropzone/docker-compose.yml` | Defines 4 services — Redis 7, PostgreSQL 15, backend (Node.js/Express), and frontend (React/Vite) — with proper networking, volume mounts, health checks, and environment variable injection for single-command `docker-compose up` startup |
 | 2 | `dropzone/.env.example` | Template for all environment variables: `REDIS_URL`, `DATABASE_URL`, `JWT_SECRET`, `ADMIN_TOKEN`, `PORT`, `FRONTEND_URL`, `VITE_API_URL`, `VITE_WS_URL` |
 | 3 | `dropzone/README.md` | Project overview with architecture diagram, setup instructions (`docker-compose up`), demo script summary, and tech stack badges |
 
@@ -648,19 +648,19 @@ A simple script using `Promise.all` with 500 `fetch` calls for environments wher
 
 | # | File Path | What It Does |
 |---|-----------|-------------|
-| 4 | `dropzone/backend/package.json` | Backend dependencies: `fastify`, `@fastify/cors`, `@fastify/rate-limit`, `ioredis`, `bull`, `pg`, `socket.io`, `jsonwebtoken`, `zod`, `uuid`, `dotenv`. Dev deps: `vitest`, `@faker-js/faker`, `nodemon` |
+| 4 | `dropzone/backend/package.json` | Backend dependencies: `Express`, `@Express/cors`, `@Express/rate-limit`, `ioredis`, `bull`, `pg`, `socket.io`, `jsonwebtoken`, `zod`, `uuid`, `dotenv`. Dev deps: `vitest`, `@faker-js/faker`, `nodemon` |
 | 5 | `dropzone/backend/.env` | Actual environment variables for local development (gitignored) |
 
 ### Backend — Entry Point & Plugins
 
 | # | File Path | What It Does |
 |---|-----------|-------------|
-| 6 | `dropzone/backend/src/server.js` | Creates the Fastify instance, registers all plugins (Redis, Postgres, Auth, Rate Limit, WebSocket), registers all route files, loads the Lua script into Redis at startup via `SCRIPT LOAD`, starts the checkout worker, starts the drop scheduler background task, and listens on the configured port |
-| 7 | `dropzone/backend/src/plugins/redis.js` | Creates and exports a shared `ioredis` client connected to `REDIS_URL`. Decorates the Fastify instance with `fastify.redis`. Handles connection errors and graceful shutdown |
-| 8 | `dropzone/backend/src/plugins/postgres.js` | Creates a `pg.Pool` connected to `DATABASE_URL`. Decorates the Fastify instance with `fastify.pg`. Provides a `query()` helper. Handles pool errors and graceful shutdown |
-| 9 | `dropzone/backend/src/plugins/auth.js` | Fastify plugin that adds JWT middleware. Provides `fastify.jwt.sign(payload)` and `fastify.jwt.verify(token)`. Used to create guest tokens (`POST /api/auth/guest`) and verify them on protected routes. Admin routes check `X-Admin-Token` header against `ADMIN_TOKEN` env var |
-| 10 | `dropzone/backend/src/plugins/ratelimit.js` | Configures `@fastify/rate-limit` with global burst protection (100 req/s per IP) and exposes a route-level config for the checkout endpoint (5 req/s per IP). Uses Redis as the rate limit store for consistency across instances |
-| 11 | `dropzone/backend/src/plugins/websocket.js` | Attaches a Socket.io server to the Fastify HTTP server. Configures CORS for the frontend origin. Sets up connection handlers: `subscribe_product` (join product room), `authenticate` (join user room via JWT), `subscribe_admin` (join admin room via admin token). Tracks viewer counts in Redis. Decorates Fastify with `fastify.io` |
+| 6 | `dropzone/backend/src/server.js` | Creates the Express instance, registers all plugins (Redis, Postgres, Auth, Rate Limit, WebSocket), registers all route files, loads the Lua script into Redis at startup via `SCRIPT LOAD`, starts the checkout worker, starts the drop scheduler background task, and listens on the configured port |
+| 7 | `dropzone/backend/src/plugins/redis.js` | Creates and exports a shared `ioredis` client connected to `REDIS_URL`. Decorates the Express instance with `Express.redis`. Handles connection errors and graceful shutdown |
+| 8 | `dropzone/backend/src/plugins/postgres.js` | Creates a `pg.Pool` connected to `DATABASE_URL`. Decorates the Express instance with `Express.pg`. Provides a `query()` helper. Handles pool errors and graceful shutdown |
+| 9 | `dropzone/backend/src/plugins/auth.js` | Express plugin that adds JWT middleware. Provides `Express.jwt.sign(payload)` and `Express.jwt.verify(token)`. Used to create guest tokens (`POST /api/auth/guest`) and verify them on protected routes. Admin routes check `X-Admin-Token` header against `ADMIN_TOKEN` env var |
+| 10 | `dropzone/backend/src/plugins/ratelimit.js` | Configures `@Express/rate-limit` with global burst protection (100 req/s per IP) and exposes a route-level config for the checkout endpoint (5 req/s per IP). Uses Redis as the rate limit store for consistency across instances |
+| 11 | `dropzone/backend/src/plugins/websocket.js` | Attaches a Socket.io server to the Express HTTP server. Configures CORS for the frontend origin. Sets up connection handlers: `subscribe_product` (join product room), `authenticate` (join user room via JWT), `subscribe_admin` (join admin room via admin token). Tracks viewer counts in Redis. Decorates Express with `Express.io` |
 
 ### Backend — Routes
 
@@ -795,7 +795,7 @@ A simple script using `Promise.all` with 500 `fetch` calls for environments wher
 ### Phase 2: Backend Core (Hours 3–4)
 **Goal: POST /checkout returns 202 with job ID**
 
-7. Create `server.js` — Fastify instance, plugin registration
+7. Create `server.js` — Express instance, plugin registration
 8. Create all plugins: `redis.js`, `postgres.js`, `auth.js`, `ratelimit.js`, `websocket.js`
 9. Run database migrations (all 6 migration files)
 10. Create route files: `product.js`, `checkout.js`, `queue.js`
@@ -851,6 +851,309 @@ Pick 2-3:
 39. Test all edge cases
 40. Clean up UI, write README
 41. Record backup demo video
+
+---
+
+## 17. Architectural Improvements (Post-MVP)
+
+> [!IMPORTANT]
+> These 5 improvements are implemented **after** the base platform (Phases 1–8) is working. They enhance performance, durability, security, and UX. The Lua gate script is **never modified** — all changes are additive.
+
+### 17.1 Per-Product Worker Pools (Improvement 1)
+
+**Problem:** Single global `checkout-queue` with concurrency 1 means a slow product blocks all other products.
+
+**Solution:** One Bull queue per product: `checkout-queue:{productId}`. Each queue gets its own worker with concurrency 1. Queue isolation ensures one product's traffic doesn't starve another.
+
+**New Files:**
+
+| # | File Path | Purpose |
+|---|-----------|---------|
+| 60 | `backend/src/workers/workerManager.js` | Manages per-product queue lifecycle: `spawnWorker(productId)`, `destroyWorker(productId)`, `getWorker(productId)` |
+| 61 | `backend/src/routes/admin.js` | Drop creation (`POST /admin/drop`), worker management (`GET /admin/workers`), gate mode toggle |
+
+**Modified Files:**
+
+| File | Changes |
+|------|---------|
+| `src/routes/checkout.js` | Enqueue to `checkout-queue:{productId}` instead of global queue |
+| `src/routes/queue.js` | Resolve jobs from product-specific queues |
+| `src/server.js` | Register admin routes, initialise worker manager |
+
+**New Redis Keys (extends Section 7):**
+
+| Key Pattern | Type | TTL | Purpose |
+|-------------|------|-----|---------|
+| `active_queues` | SET | Managed lifecycle | Registry of active per-product queue IDs |
+
+**New API Endpoints (extends Section 8):**
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/admin/drop` | Admin | Create drop + spawn per-product worker |
+| `DELETE` | `/api/admin/drop/:productId` | Admin | End drop + drain and destroy worker |
+| `GET` | `/api/admin/workers` | Admin | List active queues with waiting/active/completed counts |
+
+**Backward Compatibility:** The existing `checkout-queue` remains for products without dedicated workers. The `checkout.js` route checks for a product-specific queue first, falls back to the global queue.
+
+---
+
+### 17.2 Transactional Outbox Pattern (Improvement 2)
+
+**Problem:** Worker does (1) Redis Lua DECR, (2) Postgres INSERT. If the process crashes between steps 1 and 2, inventory is decremented in Redis but no order exists in Postgres — a permanent data loss.
+
+**Solution:** Wrap the Postgres INSERT (order) and a new outbox INSERT in a single Postgres transaction. A separate outbox processor polls for pending events and emits WebSocket broadcasts. The worker no longer calls `io.emit` directly.
+
+**New Database Table (extends Section 6):**
+
+```sql
+-- Migration: 007_create_outbox.sql
+CREATE TABLE outbox (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type TEXT NOT NULL,       -- 'order.confirmed' | 'inventory.decremented'
+  payload JSONB NOT NULL,
+  status TEXT DEFAULT 'pending',  -- 'pending' | 'processed' | 'failed'
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  processed_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_outbox_pending
+  ON outbox(status, created_at)
+  WHERE status = 'pending';
+```
+
+**New Files:**
+
+| # | File Path | Purpose |
+|---|-----------|---------|
+| 62 | `db/migrations/007_create_outbox.sql` | Outbox table + partial index |
+| 63 | `backend/src/workers/outboxProcessor.js` | Polls outbox every 500ms, emits WS events, marks processed |
+
+**Modified Files:**
+
+| File | Changes |
+|------|---------|
+| `src/workers/checkoutWorker.js` | Removes direct `io.emit`. Wraps order INSERT + outbox INSERT in single transaction. On transaction failure: compensating `INCRBY inventory:{productId} 1` |
+| `src/server.js` | Starts outbox processor on boot |
+
+**New WebSocket Events (extends Section 9):**
+
+| Event | Direction | Payload | Source |
+|-------|-----------|---------|--------|
+| `order.confirmed` | Server → Product room | `{ productId, orderId, userId, remaining }` | Outbox processor (replaces direct worker emit) |
+
+**Compensating Transaction Flow:**
+```
+Redis DECR → Postgres BEGIN → INSERT orders → INSERT outbox → COMMIT
+                                                    ↓ (on failure)
+                                              Redis INCRBY +1 (restore)
+```
+
+---
+
+### 17.3 Payment Layer with Idempotent Webhooks (Improvement 3)
+
+**Problem:** Orders go straight to `status='confirmed'` with no payment step. No revenue, no refund path, no timeout handling.
+
+**Solution:** Order lifecycle: `pending_payment` → `confirmed` | `payment_failed` | `expired`. Payment confirmation arrives via webhook (Stripe/mock). Redis keyspace notifications auto-expire unpaid orders.
+
+**Database Migration (extends Section 6):**
+
+```sql
+-- Migration: 008_payment_status.sql
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
+ALTER TABLE orders ADD CONSTRAINT orders_status_check
+  CHECK (status IN ('pending_payment','confirmed','payment_failed','expired','cancelled','refunded'));
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_provider VARCHAR(20);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_id VARCHAR(255);
+```
+
+**New Files:**
+
+| # | File Path | Purpose |
+|---|-----------|---------|
+| 64 | `db/migrations/008_payment_status.sql` | Widens status constraint, adds payment columns |
+| 65 | `backend/src/routes/webhooks.js` | Stripe/mock webhook handlers with signature verification |
+| 66 | `backend/src/workers/paymentExpiryListener.js` | Listens to Redis keyspace notifications for payment timeout expiry |
+
+**New Redis Keys (extends Section 7):**
+
+| Key Pattern | Type | TTL | Purpose |
+|-------------|------|-----|---------|
+| `payment_timeout:{orderId}` | string | 120s | Payment window — triggers expiry on timeout |
+| `webhook_processed:{eventId}` | string | 86400s (24h) | Webhook idempotency — prevents duplicate processing |
+
+**New API Endpoints (extends Section 8):**
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/webhooks/stripe` | Signature | Stripe webhook — verifies `stripe-signature` header |
+| `POST` | `/api/webhooks/mock/confirm` | None | Mock confirm payment (demo use) |
+| `POST` | `/api/webhooks/mock/fail` | None | Mock fail payment (demo use) |
+
+**New `.env` Variables:**
+```
+PAYMENT_PROVIDER=mock          # mock | stripe | razorpay
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_SECRET_KEY=sk_test_...
+```
+
+**Modified Files:**
+
+| File | Changes |
+|------|---------|
+| `src/workers/checkoutWorker.js` | Creates orders as `pending_payment`, sets `payment_timeout:{orderId}` with 120s TTL |
+| `src/services/orderService.js` | New `updateOrderStatus(pg, orderId, status)` function |
+| `src/server.js` | Registers webhook routes, starts expiry listener |
+| `.env.example` | Adds payment provider variables |
+
+**Payment Flow:**
+```
+Gate pass → INSERT order (pending_payment) → SET payment_timeout:{orderId} EX 120
+                                                    ↓
+              Webhook arrives (within 120s) → UPDATE order (confirmed)
+                         OR
+              Key expires (after 120s) → UPDATE order (expired) → INCRBY inventory +1
+```
+
+---
+
+### 17.4 Multi-Layer Bot Defense (Improvement 4)
+
+**Problem:** `POST /auth/guest` → instant token with zero friction. Any script can generate unlimited guest tokens and exhaust inventory before any human can click.
+
+**Solution:** Three-layer defense stack applied in order (fail-fast):
+
+**Layer A — Proof of Work (PoW) Challenge:**
+- Client requests a challenge: `POST /auth/challenge` → `{ challengeId, puzzle, difficulty: 4 }`
+- Client must find a `nonce` such that `SHA256(puzzle + nonce)` starts with `'0000'` (4 leading zeros)
+- ~200–800ms client-side compute — negligible for humans, expensive for bots at scale
+- `POST /auth/guest` now requires `{ challengeId, nonce }` body
+
+**Layer B — Behavioral Velocity Check (checkout middleware):**
+- Records timestamps in Redis sorted set: `ZADD behavior:{userId} ts ts`
+- If >3 checkouts within 10 seconds → flag as suspicious, require re-challenge
+- If checkout arrives <200ms after drop unlock → flag as bot (sub-200ms human reaction is impossible)
+
+**Layer C — Junk Job Deduplication (Bull enqueue):**
+- Before enqueuing: check `SISMEMBER queued_users:{productId}:{dropId} userId`
+- If already in set → reject with `409 already_queued`
+- Otherwise: `SADD` the user with TTL = drop duration + 300s
+
+**New Files:**
+
+| # | File Path | Purpose |
+|---|-----------|---------|
+| 67 | `backend/src/services/powService.js` | Challenge generation + PoW validation |
+| 68 | `backend/src/middleware/botDefense.js` | Velocity check + reaction time check |
+| 69 | `public/pow-solver.js` | Client-side PoW solver (vanilla JS, importable by frontend) |
+
+**New Redis Keys (extends Section 7):**
+
+| Key Pattern | Type | TTL | Purpose |
+|-------------|------|-----|---------|
+| `pow_challenge:{challengeId}` | string | 60s | PoW puzzle storage |
+| `behavior:{userId}` | sorted set | 30s | Checkout velocity tracking |
+| `queued_users:{productId}:{dropId}` | set | drop duration + 300s | Junk-job deduplication |
+
+**New API Endpoints (extends Section 8):**
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/auth/challenge` | None | Issue PoW challenge |
+
+**Modified Endpoints:**
+
+| Method | Path | Changes |
+|--------|------|---------|
+| `POST` | `/api/auth/guest` | Now requires `{ challengeId, nonce }` body for PoW validation |
+| `POST` | `/api/checkout` | Bot defense middleware added before enqueue |
+
+---
+
+### 17.5 Adaptive Queue ETA (Improvement 5)
+
+**Problem:** Current estimate `estimatedWait = waitingCount * 50` uses a static 50ms assumption that is wrong by 10–100x under real load.
+
+**Solution:** Track actual job durations, compute rolling p50/p95 percentiles, and broadcast updated ETAs via WebSocket.
+
+**New Files:**
+
+| # | File Path | Purpose |
+|---|-----------|---------|
+| 70 | `backend/src/services/queueStats.js` | Calculates rolling p50/p95 from Redis `job_durations:{productId}` list |
+
+**New Redis Keys (extends Section 7):**
+
+| Key Pattern | Type | TTL | Purpose |
+|-------------|------|-----|---------|
+| `job_durations:{productId}` | list | 3600s (1h) | Last 50 job duration samples |
+
+**New WebSocket Events (extends Section 9):**
+
+| Event | Direction | Payload | When |
+|-------|-----------|---------|------|
+| `eta_update` | Server → Product room | `{ productId, p50, p95, queueDepth }` | Every 2 seconds |
+
+**Modified Files:**
+
+| File | Changes |
+|------|---------|
+| `src/workers/checkoutWorker.js` | Records job duration via `LPUSH` + `LTRIM` on completion |
+| `src/routes/checkout.js` | Returns `{ jobId, position, estimatedWait, worstCase, confidence }` |
+| `src/routes/queue.js` | Recalculates position + adaptive ETA on poll |
+| `src/server.js` | Starts periodic `eta_update` WebSocket broadcast (every 2s) |
+
+**ETA Calculation:**
+```
+LRANGE job_durations:{productId} 0 -1 → sort → p50 = median, p95 = 95th percentile
+estimatedWait = position × p50
+worstCase = position × p95
+confidence = samples ≥ 5 ? 'high' : 'low'
+Cold start fallback = 80ms per job
+```
+
+---
+
+### 17.6 Implementation Order & Dependencies
+
+```
+┌──────────────────┐
+│ 1. Worker Pools  │ ← Foundation: settles worker structure
+└────────┬─────────┘
+         │
+    ┌────▼────┐      ┌────────────────┐
+    │ 2. Outbox│      │ 4. Bot Defense │ ← Independent, parallel-safe
+    └────┬────┘      └────────────────┘
+         │
+    ┌────▼────────┐
+    │ 3. Payments  │ ← Needs outbox for crash-safe events
+    └─────────────┘
+         
+    ┌──────────────┐
+    │ 5. Adaptive   │ ← Needs per-product queues
+    │    ETA        │
+    └──────────────┘
+```
+
+| Order | Improvement | Depends On | Breaks If Skipped |
+|-------|-------------|------------|-------------------|
+| 1st | Worker Pools | Nothing | All products bottleneck through one queue |
+| 2nd | Outbox | Imp 1 | Crash between Redis DECR and Postgres INSERT = permanent data loss |
+| 3rd | Bot Defense | Nothing | Scripts exhaust inventory instantly |
+| 4th | Payments | Imp 2 | Orders confirmed without payment |
+| 5th | Adaptive ETA | Imp 1 | Users see wildly inaccurate wait times |
+
+---
+
+### 17.7 Constraints
+
+- **Lua script untouched** — The atomic gate (`inventory_gate.lua`) must not be modified
+- **Additive migrations only** — New tables and columns only, no destructive changes
+- **All Redis keys have TTLs** — No unbounded key growth
+- **Backward-compatible queues** — `checkout-queue` still works for products without a dedicated worker
+- **Zod validation** on every new endpoint
 
 ---
 
