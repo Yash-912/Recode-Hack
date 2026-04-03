@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Insight-OS Test Analytics</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 2rem; background: #111; color: #fff; }
+    button { padding: 1rem 2rem; font-size: 1rem; cursor: pointer; background: #2563eb; color: white; border: none; border-radius: 4px; }
+    #log { margin-top: 2rem; padding: 1rem; background: #1e1e1e; border-radius: 8px; font-family: monospace; font-size: 0.85rem; max-height: 300px; overflow-y: auto; }
+    .entry { padding: 4px 0; border-bottom: 1px solid #333; }
+  </style>
+</head>
+<body>
+  <h1>Insight-OS Tracker Verification</h1>
+  <p>The tracker snippet is loaded. A <code>pageview</code> event has already been sent.</p>
+  <p>Click anywhere on the screen to test <code>click</code> tracking.</p>
+  <button>Test Click Event</button>
+  <div id="log"><strong>Event Log:</strong></div>
+
+  <!-- Cache-busted tracker load -->
+  <script
+    src="/tracker.js?v=2"
+    data-site="test-site-id"
+    data-endpoint="http://localhost:3000/api/collect"
+  ></script>
+
+  <script>
+    // Visual feedback for clicks
+    document.addEventListener('click', function(e) {
+      var log = document.getElementById('log');
+      var entry = document.createElement('div');
+      entry.className = 'entry';
+      entry.textContent = new Date().toLocaleTimeString() + ' — click at (' + 
+        Math.round(e.clientX/window.innerWidth*100) + '%, ' + 
+        Math.round(e.clientY/window.innerHeight*100) + '%)';
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    });
+  </script>
+</body>
+</html>

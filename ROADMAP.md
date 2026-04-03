@@ -11,10 +11,10 @@
 
 | Phase | Name | Duration | Status |
 |---|---|---|---|
-| Phase 0 | Foundation & Setup | Hour 0–1 | ⬜ |
-| Phase 1 | Core Systems | Hour 1–4 | ⬜ |
-| Phase 2 | Features | Hour 4–8 | ⬜ |
-| Phase 3 | The Wow Factors | Hour 8–11 | ⬜ |
+| Phase 0 | Foundation & Setup | Hour 0–1 | ✅ |
+| Phase 1 | Core Systems | Hour 1–4 | ✅ (A+B) · ⬜ (C) |
+| Phase 2 | Features | Hour 4–8 | ✅ (A+B) · ⬜ (C) |
+| Phase 3 | The Wow Factors | Hour 8–11 | ✅ (A+B) · ⬜ (C) |
 | Phase 4 | Ship & Demo | Hour 11–12 | ⬜ |
 
 ---
@@ -48,16 +48,16 @@
 
 | # | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| 1A.1 | Create `/tracker/tracker.src.js` — vanilla JS source file | A | ⬜ | Copy base from PRD Section 7 |
-| 1A.2 | Implement `trackPageview()` using `navigator.sendBeacon()` | A | ⬜ | Fires on DOMContentLoaded |
-| 1A.3 | Implement `trackClick()` with `x_pct` and `y_pct` as viewport percentages | A | ⬜ | `e.clientX / window.innerWidth * 100` |
-| 1A.4 | Wrap all setup in `requestIdleCallback()` | A | ⬜ | Falls back to direct call if not supported |
-| 1A.5 | Add esbuild build script in `package.json` → output to `/public/tracker.js` | A | ⬜ | `esbuild tracker.src.js --bundle --minify` |
-| 1A.6 | Build and verify output is < 5KB: `wc -c public/tracker.js` | A | ⬜ | Target: under 5120 bytes |
-| 1A.7 | Create `POST /api/collect/route.ts` — receives beacon payload | A | ⬜ | Returns 204, no body |
-| 1A.8 | Add CORS headers to `/api/collect`: `Access-Control-Allow-Origin: *` | A | ⬜ | Required for cross-origin sendBeacon |
-| 1A.9 | Parse + validate incoming event payload (site_id, type, url, referrer, x_pct, y_pct, ts) | A | ⬜ | Zod schema validation |
-| 1A.10 | Test end-to-end: open a browser, paste snippet pointing at localhost, confirm event hits API | A | ⬜ | Use curl or browser console |
+| 1A.1 | Create `/tracker/tracker.src.js` — vanilla JS source file | A | ✅ | Copy base from PRD Section 7 |
+| 1A.2 | Implement `trackPageview()` using `navigator.sendBeacon()` | A | ✅ | Fires on DOMContentLoaded |
+| 1A.3 | Implement `trackClick()` with `x_pct` and `y_pct` as viewport percentages | A | ✅ | `e.clientX / window.innerWidth * 100` |
+| 1A.4 | Wrap all setup in `requestIdleCallback()` | A | ✅ | Falls back to direct call if not supported |
+| 1A.5 | Add esbuild build script in `package.json` → output to `/public/tracker.js` | A | ✅ | `esbuild tracker.src.js --bundle --minify` |
+| 1A.6 | Build and verify output is < 5KB: `wc -c public/tracker.js` | A | ✅ | Target: under 5120 bytes |
+| 1A.7 | Create `POST /api/collect/route.ts` — receives beacon payload | A | ✅ | Returns 204, no body |
+| 1A.8 | Add CORS headers to `/api/collect`: `Access-Control-Allow-Origin: *` | A | ✅ | Required for cross-origin sendBeacon |
+| 1A.9 | Parse + validate incoming event payload (site_id, type, url, referrer, x_pct, y_pct, ts) | A | ✅ | Zod schema validation |
+| 1A.10 | Test end-to-end: open a browser, paste snippet pointing at localhost, confirm event hits API | A | ✅ | Use curl or browser console |
 
 ---
 
@@ -65,33 +65,43 @@
 
 | # | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| 1B.1 | Set up Prisma client (`/lib/prisma.ts`) + Upstash Redis (`/lib/redis.ts`) | B | ⬜ | Export singleton instances |
-| 1B.2 | Implement `insertEvent()` function — writes to `events` table | B | ⬜ | All columns from parsed payload |
-| 1B.3 | Implement `upsertHourlyStats()` — increments `pageviews` or `clicks` counter | B | ⬜ | `ON CONFLICT (site_id, hour) DO UPDATE SET pageviews = hourly_stats.pageviews + 1` |
-| 1B.4 | Wire both writes into `/api/collect` as a parallel `Promise.all()` — not sequential | B | ⬜ | Both writes happen simultaneously |
-| 1B.5 | Implement session hash: `SHA256(ip + userAgent + YYYY-MM-DD)` on server | B | ⬜ | Use Node.js `crypto.createHash('sha256')` |
-| 1B.6 | Implement Geo-IP lookup: call `http://ip-api.com/json/${ip}` → extract country | B | ⬜ | Cache per IP per hour in memory Map to avoid rate limit |
-| 1B.7 | Attach `country` and `session_hash` to event before writing | B | ⬜ | |
-| 1B.8 | Create `GET /api/stats` route — queries `hourly_stats` for given `site_id` + `range` | B | ⬜ | Params: `?site_id=X&range=24h|7d|30d` |
-| 1B.9 | Create `GET /api/events/recent` route — last 50 events for Live Feed | B | ⬜ | Ordered by ts DESC, is_bot = FALSE |
-| 1B.10 | Test dual-write: send 5 test events, confirm both rows exist in Prisma Studio | B | ⬜ | Run npx prisma studio |
+| 1B.1 | Set up Prisma client (`/lib/prisma.ts`) + Upstash Redis (`/lib/redis.ts`) | B | ✅ | Export singleton instances |
+| 1B.2 | Implement `insertEvent()` function — writes to `events` table | B | ✅ | All columns from parsed payload |
+| 1B.3 | Implement `upsertHourlyStats()` — increments `pageviews` or `clicks` counter | B | ✅ | `ON CONFLICT (site_id, hour) DO UPDATE SET pageviews = hourly_stats.pageviews + 1` |
+| 1B.4 | Wire both writes into `/api/collect` as a parallel `Promise.all()` — not sequential | B | ✅ | Both writes happen simultaneously |
+| 1B.5 | Implement session hash: `SHA256(ip + userAgent + YYYY-MM-DD)` on server | B | ✅ | Use Node.js `crypto.createHash('sha256')` |
+| 1B.6 | Implement Geo-IP lookup: call `http://ip-api.com/json/${ip}` → extract country | B | ✅ | Cache per IP per hour in memory Map to avoid rate limit |
+| 1B.7 | Attach `country` and `session_hash` to event before writing | B | ✅ | |
+| 1B.8 | Create `GET /api/stats` route — queries `hourly_stats` for given `site_id` + `range` | B | ✅ | Params: `?site_id=X&range=24h|7d|30d` |
+| 1B.9 | Create `GET /api/events/recent` route — last 50 events for Live Feed | B | ✅ | Ordered by ts DESC, is_bot = FALSE |
+| 1B.10 | Test dual-write: send 5 test events, confirm both rows exist in Prisma Studio | B | ✅ | Run npx prisma studio |
 
 ---
 
-### Phase 1 — Person C: Dashboard Shell + Auth
+### Phase 1 — Person C: Dashboard Shell + Auth ("Reconstruction" Theme)
+
+**Design System (from Person C PRD):**
+- **Background:** Deep obsidian (`#000000`) + rich crimson (`#2D0505`) radial gradients
+- **Accents:** Glowing red concentric pulse rings
+- **Header:** Minimalist nav with glassmorphic badges for "Next.js" and "TypeScript"
+- **Phase Tracker:** Vertical sidebar — Phase 1 (Active/Glowing Red), Phase 2 (Active), Final Phase (Locked/Frosted Glass)
+- **Locked State:** `backdrop-filter: blur(20px)` over dashboard, faint chart/map outlines behind frost
+- **Typography:** High-contrast, razor-sharp white sans-serif
 
 | # | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| 1C.1 | Set up NextAuth (/app/api/auth/[...nextauth]/route.ts) | C | ⬜ | Credentials provider for demo |
-| 1C.2 | Create `/login` page — simple email + password form | C | ⬜ | No OAuth needed for demo |
+| 1C.1 | Set up NextAuth Credentials provider | C | ⬜ | `/app/api/auth/[...nextauth]/route.ts` |
+| 1C.2 | Create `/login` page — dark obsidian theme, crimson accent button | C | ⬜ | Match Reconstruction theme |
 | 1C.3 | Protect `/dashboard` route — redirect to `/login` if no session | C | ⬜ | Middleware or layout check |
-| 1C.4 | Create Mission Control layout shell — dark theme, 3-column grid | C | ⬜ | Left: feed, Center: chart, Right: signals |
-| 1C.5 | Set up Tailwind dark theme config, define CSS variables for Mission Control palette | C | ⬜ | Background: #0F172A, accent: #2563EB |
-| 1C.6 | Create top bar component: Active Now · Today's PVs · Top Country | C | ⬜ | Static placeholder data for now |
-| 1C.7 | Create site registration flow — admin enters domain, gets site_id | C | ⬜ | Writes to `sites` table |
-| 1C.8 | Create bottom Funnel Health Bar component (static placeholder) | C | ⬜ | 🟢 🟡 🔴 placeholders |
-| 1C.9 | Wire dashboard to fetch from `GET /api/stats` — render loading + data states | C | ⬜ | |
-| 1C.10 | Set up tab navigation: Overview · Funnels · Heatmap · Sessions · Live Map | C | ⬜ | Tabs in top nav, content area switches |
+| 1C.4 | Create Mission Control layout — obsidian bg, crimson radial gradient, 3-col grid | C | ⬜ | Left: feed, Center: chart, Right: signals |
+| 1C.5 | Set up Tailwind dark theme: obsidian `#000`, crimson `#2D0505`, accent red pulse | C | ⬜ | CSS vars for Reconstruction palette |
+| 1C.6 | Top bar component: Active Now · Today's PVs · Top Country with glassmorphic badges | C | ⬜ | Placeholder data initially |
+| 1C.7 | Site registration flow — admin enters domain, gets site_id | C | ⬜ | Writes to `sites` table |
+| 1C.8 | Bottom Funnel Health Bar (static placeholder) with 🟢🟡🔴 indicators | C | ⬜ | |
+| 1C.9 | Wire dashboard to `GET /api/stats` — loading skeletons → data states | C | ⬜ | Crimson-tinted skeleton pulse |
+| 1C.10 | Tab navigation: Overview · Funnels · Heatmap · Sessions · Live Map | C | ⬜ | Glassmorphic tab pills |
+| 1C.11 | **Locked Dashboard State** — frosted glass blur over dashboard with faint chart outlines | C | ⬜ | `backdrop-filter: blur(20px)`, red glow map behind frost |
+| 1C.12 | **Phase Tracker sidebar** — Phase 1 (Glowing Red), Phase 2, Final Phase (Locked/Frosted) | C | ⬜ | Vertical sidebar or bottom dock |
 
 **Phase 1 Exit Criteria:** Events flow from browser → API → Neon DB. Dashboard shell renders with auth. Stats API returns data.
 
@@ -107,14 +117,14 @@
 
 | # | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| 2A.1 | Create `/lib/bot-detection.ts` utility | A | ⬜ | Returns `{ isBot: boolean, reason: string }` |
-| 2A.2 | Add UA blocklist — top 50 known bots (Googlebot, bingbot, Slurp, Baiduspider, etc.) | A | ⬜ | Static string array, case-insensitive check |
-| 2A.3 | Add velocity check — track requests per IP using Redis (Upstash) with 10s TTL | A | ⬜ | If > 10 events in 10s → isBot = true |
-| 2A.4 | Add referrer spam list — top 20 known spam referrer domains | A | ⬜ | Static string array |
-| 2A.5 | Integrate bot detection into `/api/collect` — set `is_bot` field before DB write | A | ⬜ | Flagged not dropped — stored for audit |
-| 2A.6 | Create demo test site HTML page (`/demo/index.html`) — minimal 4-page site with tracker snippet | A | ⬜ | Pages: /, /pricing, /checkout, /thank-you |
+| 2A.1 | Create `/lib/bot-detection.ts` utility | A | ✅ | Returns `{ isBot: boolean, reason: string }` |
+| 2A.2 | Add UA blocklist — top 50 known bots (Googlebot, bingbot, Slurp, Baiduspider, etc.) | A | ✅ | Static string array, case-insensitive check |
+| 2A.3 | Add velocity check — track requests per IP using Redis (Upstash) with 10s TTL | A | ✅ | If > 10 events in 10s → isBot = true |
+| 2A.4 | Add referrer spam list — top 20 known spam referrer domains | A | ✅ | Static string array |
+| 2A.5 | Integrate bot detection into `/api/collect` — set `is_bot` field before DB write | A | ✅ | Flagged not dropped — stored for audit |
+| 2A.6 | Create demo test site HTML page (`/demo/index.html`) — minimal 4-page site with tracker snippet | A | ✅ | Pages: /, /pricing, /checkout, /thank-you |
 | 2A.7 | Deploy demo test site as Vercel static deployment (separate from main app) | A | ⬜ | Or host as `/public/demo/` subfolder |
-| 2A.8 | Set up Redis Pub/Sub + Server-Sent Events (SSE) for the Live Feed | A | ⬜ | Filter by `site_id` |
+| 2A.8 | Set up Redis Pub/Sub + Server-Sent Events (SSE) for the Live Feed | A | ✅ | Filter by `site_id` |
 | 2A.9 | Create Live Event Feed component — new events prepend with fade-in animation | A | ⬜ | Show: icon + url + country flag + time ago |
 | 2A.10 | Create Bot Audit panel — shows flagged events with reason (UA/velocity/referrer) | A | ⬜ | In a modal or separate tab |
 
@@ -124,35 +134,41 @@
 
 | # | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| 2B.1 | Create `POST /api/funnels` route — saves funnel definition to `funnels` table | B | ⬜ | Validates steps is array of URL paths |
-| 2B.2 | Create `GET /api/funnels` route — lists all funnels for a site | B | ⬜ | |
-| 2B.3 | Implement funnel analysis query — step-by-step session count (see PRD Section 5.5) | B | ⬜ | Sequential CTEs, one per funnel step |
-| 2B.4 | Create `GET /api/funnels/:id/analysis` route — returns counts per step | B | ⬜ | Response: `[{ step, url, sessions, drop_pct }]` |
-| 2B.5 | Update `upsertHourlyStats()` to also maintain `top_pages`, `top_referrers`, `top_countries` JSONB fields | B | ⬜ | Read-modify-write: fetch current JSONB, update, upsert |
-| 2B.6 | Create `GET /api/sessions` route — returns last 20 sessions with ordered events | B | ⬜ | Group by `session_hash`, ORDER BY first event ts DESC |
-| 2B.7 | Create `GET /api/heatmap` route — returns click events with x_pct + y_pct for a URL | B | ⬜ | Filter: type=click, is_bot=false, url LIKE param |
-| 2B.8 | Add rate limiting to `/api/collect` — max 100 req/s per site_id using token bucket | B | ⬜ | In-memory, resets per second |
-| 2B.9 | Write seed script — generates 500 fake events across 4 pages for demo data | B | ⬜ | Distribute across 24h, vary referrers + countries |
-| 2B.10 | Run seed script against Neon DB, verify `hourly_stats` aggregates correctly | B | ⬜ | |
+| 2B.1 | Create `POST /api/funnels` route — saves funnel definition to `funnels` table | B | ✅ | Validates steps is array of URL paths |
+| 2B.2 | Create `GET /api/funnels` route — lists all funnels for a site | B | ✅ | |
+| 2B.3 | Implement funnel analysis query — step-by-step session count (see PRD Section 5.5) | B | ✅ | Sequential CTEs, one per funnel step |
+| 2B.4 | Create `GET /api/funnels/:id/analysis` route — returns counts per step | B | ✅ | Response: `[{ step, url, sessions, drop_pct }]` |
+| 2B.5 | Update `upsertHourlyStats()` to also maintain `top_pages`, `top_referrers`, `top_countries` JSONB fields | B | ✅ | Read-modify-write: fetch current JSONB, update, upsert |
+| 2B.6 | Create `GET /api/sessions` route — returns last 20 sessions with ordered events | B | ✅ | Group by `session_hash`, ORDER BY first event ts DESC |
+| 2B.7 | Create `GET /api/heatmap` route — returns click events with x_pct + y_pct for a URL | B | ✅ | Filter: type=click, is_bot=false, url LIKE param |
+| 2B.8 | Add rate limiting to `/api/collect` — max 100 req/s per site_id using token bucket | B | ✅ | In-memory, resets per second |
+| 2B.9 | Write seed script — generates 500 fake events across 4 pages for demo data | B | ✅ | Distribute across 24h, vary referrers + countries |
+| 2B.10 | Run seed script against Neon DB, verify `hourly_stats` aggregates correctly | B | ✅ | |
 
 ---
 
 ### Phase 2 — Person C: Charts + Signal Cards + Heatmap UI
 
+**Visual Requirements (from Person C PRD):**
+- Charts styled to match Dark Crimson theme (Tremor or Recharts with custom theme)
+- Heatmap uses `<canvas>` with `globalCompositeOperation = 'screen'` for thermal glow
+- Signal Cards: skeleton loading → fade-in with severity-colored borders
+- Hot Zone colors: glowing red/orange hues on dark background
+
 | # | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| 2C.1 | Build Annotated Line Chart (Recharts) — pageviews per hour, x-axis = time | C | ⬜ | Data from `GET /api/stats` |
-| 2C.2 | Add spike detection to chart — if hour > 2x rolling average, add `<ReferenceLine>` label | C | ⬜ | Compute client-side from the data array |
-| 2C.3 | Add time range selector — 24h / 7d / 30d buttons, refetch on change | C | ⬜ | |
-| 2C.4 | Build Top Pages bar chart (Recharts) — horizontal bars, top 5 URLs | C | ⬜ | Data from `top_pages` JSONB field |
-| 2C.5 | Build Top Referrers bar chart (Recharts) | C | ⬜ | |
-| 2C.6 | Wire top bar stats to real data — Active Now count, Today PVs, Top Country | C | ⬜ | Active Now = sessions in last 5 minutes |
-| 2C.7 | Build AI Signal Cards component — calls `POST /api/signals` on load | C | ⬜ | Shows loading skeleton → fades in cards |
-| 2C.8 | Create `POST /api/signals` route — calls Gemini API with hourly stats, returns insight array | C | ⬜ | See PRD Section 8 for full prompt |
-| 2C.9 | Style Signal Cards: severity → border color (red=critical, yellow=warning, blue=info) | C | ⬜ | |
-| 2C.10 | Build Heatmap tab — canvas element + screenshot image as background | C | ⬜ | Screenshot from screenshotone.com or placeholder |
-| 2C.11 | Implement canvas drawing — radial gradient circles at x_pct/y_pct coordinates | C | ⬜ | `globalCompositeOperation = 'screen'` for heat effect |
-| 2C.12 | Build Funnel visualization — stepped horizontal bar chart with drop-off % badges | C | ⬜ | Color: green>60%, yellow 30-60%, red<30% |
+| 2C.1 | Build Annotated Line Chart (Recharts) — crimson theme, pageviews/hour | C | ⬜ | Data from `GET /api/stats` |
+| 2C.2 | Spike detection — `<ReferenceLine>` labels for hours > 2x rolling avg | C | ⬜ | Client-side computation |
+| 2C.3 | Time range selector — 24h / 7d / 30d glassmorphic buttons | C | ⬜ | Refetch on change |
+| 2C.4 | Top Pages bar chart (Recharts) — horizontal, top 5 URLs | C | ⬜ | From `top_pages` JSONB |
+| 2C.5 | Top Referrers bar chart (Recharts) | C | ⬜ | |
+| 2C.6 | Wire top bar to real API data (Active Now, Today PVs, Top Country) | C | ⬜ | Active Now = sessions in last 5 min |
+| 2C.7 | AI Signal Cards component — XAI-powered with confidence badges | C | ⬜ | Skeleton → fade-in, calls `POST /api/signals` |
+| 2C.8 | ~~Create `POST /api/signals` route~~ | ~~C~~ | ✅ | **Already built (Person A Phase 3) with XAI** |
+| 2C.9 | Style Signal Cards: severity borders + XAI reasoning + confidence % | C | ⬜ | Red=critical, Yellow=warning, Blue=info |
+| 2C.10 | **Heatmap Canvas** — `<canvas>` layered over screenshot, dark bg | C | ⬜ | screenshotone.com or placeholder image |
+| 2C.11 | **Canvas Hot Zones** — radial gradient circles at x_pct/y_pct | C | ⬜ | `globalCompositeOperation = 'screen'`, red/orange glow |
+| 2C.12 | Funnel visualization — stepped bars with drop-off % badges | C | ⬜ | Green>60%, Yellow 30-60%, Red<30% |
 
 **Phase 2 Exit Criteria:** Events are bot-filtered. Funnel analysis works. Charts load real data. Signal Cards show AI insights. Heatmap renders clicks.
 
@@ -191,21 +207,37 @@
 
 ---
 
-### Phase 3 — Person C: UI Polish + Heatmap AI Opinion
+### Phase 3 — Person C: UI Polish + Heatmap AI + "Reconstruction" Landing
+
+**Visual Requirements (from Person C PRD):**
+- **Animations:** Framer Motion for layout transitions. Content "floats" in weightlessly.
+- **Icons:** Lucide-React for all icons (lightweight, Lighthouse-friendly)
+- **Empty States:** "Waiting for events..." with animated red pulse on obsidian bg
+- **Heatmap Overlay:** Semi-transparent Hot Zones in glowing red/orange
+- **Landing Page:** Futuristic "Anti-Gravity" hero with floating crystalline node, orbiting code snippets, dramatic red rim lighting
 
 | # | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| 3C.1 | Add Heatmap AI Opinion: after canvas renders, call Gemini with click distribution summary | C | ⬜ | See PRD Section 5.6 for prompt |
-| 3C.2 | Render AI Opinion as a callout card below the heatmap canvas | C | ⬜ | "76% of clicks are top-left. Your CTA is being ignored." |
-| 3C.3 | Add funnel creation UI — form to define funnel name + steps (add/remove URL fields) | C | ⬜ | POST to /api/funnels on submit |
-| 3C.4 | Wire Funnel Health Bar to real data from funnel analysis API | C | ⬜ | Green/yellow/red based on completion % |
-| 3C.5 | Add page transition animations — subtle fade between tabs | C | ⬜ | Framer Motion or CSS transitions |
-| 3C.6 | Polish Live Feed — add event type icons (👁 pageview, 🖱 click), smooth auto-scroll | C | ⬜ | |
-| 3C.7 | Add empty states — if no data yet, show "Waiting for events..." with animated pulse | C | ⬜ | |
-| 3C.8 | Mobile responsiveness check — dashboard should at least be usable on tablet | C | ⬜ | Not a judge criterion but shows polish |
-| 3C.9 | Write copy for demo site landing page — make it look like a real product homepage | C | ⬜ | "The analytics tool that actually tells you what to do." |
+| 3C.1 | **Heatmap XAI Opinion** — call Gemini with click distribution stats | C | ⬜ | `POST /api/heatmap/opinion` ✅ already built |
+| 3C.2 | Render XAI Opinion as callout card below canvas — confidence + reasoning | C | ⬜ | "76% of clicks are top-left. Your CTA is being ignored." |
+| 3C.3 | Funnel creation UI — dynamic form (add/remove URL steps) | C | ⬜ | POST to /api/funnels |
+| 3C.4 | Wire Funnel Health Bar to real analysis data | C | ⬜ | Green/yellow/red per step |
+| 3C.5 | **Framer Motion transitions** — subtle float/fade between tabs | C | ⬜ | Layout wrapper keeps bg gradient consistent |
+| 3C.6 | **Live Feed Polish** — Lucide icons (👁 pageview, 🖱 click), auto-scroll | C | ⬜ | Lean frontend for Lighthouse ≥ 95 |
+| 3C.7 | **Empty states** — "Waiting for events..." with animated crimson pulse | C | ⬜ | On obsidian bg |
+| 3C.8 | Mobile/tablet responsiveness pass | C | ⬜ | Not scored but shows polish |
+| 3C.9 | **"Reconstruction" Hero Landing Page** | C | ⬜ | See below |
+| 3C.10 | **Session Narratives UI** — scrollable list, click → expand XAI narrative | C | ⬜ | Shows intent + confidence + reasoning |
 
-**Phase 3 Exit Criteria:** Session Narratives work end-to-end. Live Geo Map shows pulsing dots. Heatmap AI Opinion renders. UI feels polished.
+**3C.9 Landing Page Spec (from Person C PRD):**
+- Floating, 3D "Anti-Gravity" crystalline node = the Collector Script
+- Orbiting TypeScript/Next.js code snippets (weightless animation)
+- High-contrast white sans-serif typography
+- Dramatic red rim lighting on a bezel-less floating tablet
+- Data viz previews using Recharts styled to Dark Crimson theme
+- Use `Next/Image` for bg stability, keep snippet < 5KB
+
+**Phase 3 Exit Criteria:** Session Narratives work end-to-end. Live Geo Map shows pulsing dots. Heatmap AI Opinion renders. Landing page wows judges. UI feels polished.
 
 ---
 

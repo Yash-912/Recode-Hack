@@ -1,17 +1,22 @@
-// ─── Prisma Client Singleton ───────────────────────────────
-// Prevents hot-reload from creating multiple Prisma Client instances
-// https://www.prisma.io/docs/guides/other/troubleshooting-orm/help-articles/nextjs-prisma-client-dev-practices
+// ─── Prisma Client Singleton (Prisma 7 + @prisma/adapter-pg) ─────
+// Prisma 7 requires a driver adapter. We use @prisma/adapter-pg
+// which takes { connectionString } directly — no separate Pool needed.
 
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
-  });
+function createPrismaClient() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error('DATABASE_URL is not set!');
+
+  const adapter = new PrismaPg({ connectionString: url });
+  return new PrismaClient({ adapter } as any);
+}
+
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;

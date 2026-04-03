@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Insight-OS — Phase 3 Test Panel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #e5e5e5; padding: 2rem; }
+    h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .subtitle { color: #888; margin-bottom: 2rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .card { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 1.5rem; }
+    .card h2 { font-size: 1.1rem; color: #60a5fa; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .card h2 .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; background: #1e3a5f; color: #93c5fd; }
+    button { padding: 0.6rem 1.2rem; font-size: 0.85rem; cursor: pointer; background: #2563eb; color: white; border: none; border-radius: 6px; transition: background 0.2s; }
+    button:hover { background: #1d4ed8; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .result { margin-top: 1rem; padding: 1rem; background: #0d0d0d; border-radius: 8px; font-size: 0.85rem; line-height: 1.6; min-height: 60px; white-space: pre-wrap; word-break: break-word; }
+    .loading { color: #666; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .signal { padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 8px; border-left: 4px solid; }
+    .signal.critical { border-color: #ef4444; background: #1a0505; }
+    .signal.warning { border-color: #f59e0b; background: #1a1305; }
+    .signal.info { border-color: #3b82f6; background: #05101a; }
+    .signal .title { font-weight: 600; font-size: 0.9rem; }
+    .signal .body { font-size: 0.8rem; color: #aaa; margin-top: 4px; }
+    .session { padding: 0.6rem 0.8rem; margin-bottom: 0.4rem; background: #111; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+    .session:hover { background: #1a1a2e; }
+    .session .meta { font-size: 0.8rem; color: #888; }
+    .session .device { font-size: 1.1rem; }
+    .highlight { border: 1px solid #f59e0b !important; }
+    .full-width { grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+  <h1>🧠 Insight-OS — Phase 3 Test Panel</h1>
+  <p class="subtitle">Test AI Narratives, Signal Cards, and Session Reconstruction</p>
+
+  <div class="grid">
+    <!-- AI Signal Cards -->
+    <div class="card">
+      <h2>⚡ AI Signal Cards <span class="badge">POST /api/signals</span></h2>
+      <p style="font-size:0.8rem; color:#888; margin-bottom:1rem;">Gemini analyzes your last 24h of traffic and returns severity-tagged insights.</p>
+      <button onclick="fetchSignals()">Generate AI Signals</button>
+      <div id="signals-result" class="result">Click the button to ask Gemini for insights...</div>
+    </div>
+
+    <!-- Sessions List -->
+    <div class="card">
+      <h2>👤 Sessions <span class="badge">GET /api/sessions</span></h2>
+      <p style="font-size:0.8rem; color:#888; margin-bottom:1rem;">Click a session to generate its AI narrative.</p>
+      <button onclick="fetchSessions()">Load Sessions</button>
+      <div id="sessions-result" class="result">Click the button to load recent sessions...</div>
+    </div>
+
+    <!-- AI Narrative -->
+    <div class="card full-width">
+      <h2>📖 AI Session Narrative <span class="badge">POST /api/narratives</span></h2>
+      <p style="font-size:0.8rem; color:#888; margin-bottom:1rem;">Gemini reads a user's entire journey and writes a behavioral story about their intent.</p>
+      <div id="narrative-result" class="result">← Select a session from the list above to generate a narrative...</div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="card">
+      <h2>📊 Dashboard Stats <span class="badge">GET /api/stats</span></h2>
+      <button onclick="fetchStats()">Load Stats</button>
+      <div id="stats-result" class="result">Click to load...</div>
+    </div>
+
+    <!-- Active Locations -->
+    <div class="card">
+      <h2>🌍 Active Locations <span class="badge">GET /api/active-locations</span></h2>
+      <button onclick="fetchLocations()">Load Active Users</button>
+      <div id="locations-result" class="result">Click to load...</div>
+    </div>
+  </div>
+
+  <script>
+    const SITE_ID = 'test-site-id';
+    const BASE = '';
+
+    async function fetchSignals() {
+      const el = document.getElementById('signals-result');
+      el.innerHTML = '<span class="loading">⏳ Asking Gemini to analyze your traffic...</span>';
+      try {
+        const res = await fetch(`${BASE}/api/signals`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ site_id: SITE_ID })
+        });
+        const data = await res.json();
+        if (data.error) { el.textContent = '❌ ' + data.error; return; }
+        el.innerHTML = data.signals.map(s =>
+          `<div class="signal ${s.severity}"><div class="title">${s.severity.toUpperCase()}: ${s.title}</div><div class="body">${s.body}</div></div>`
+        ).join('');
+      } catch (e) { el.textContent = '❌ ' + e.message; }
+    }
+
+    async function fetchSessions() {
+      const el = document.getElementById('sessions-result');
+      el.innerHTML = '<span class="loading">⏳ Loading sessions...</span>';
+      try {
+        const res = await fetch(`${BASE}/api/sessions?site_id=${SITE_ID}`);
+        const data = await res.json();
+        if (data.error) { el.textContent = '❌ ' + data.error; return; }
+        if (!data.sessions.length) { el.textContent = 'No sessions found. Click around on the demo page first!'; return; }
+        el.innerHTML = data.sessions.map(s => {
+          const isHighlight = s.sessionHash === data.mostInteresting;
+          return `<div class="session ${isHighlight ? 'highlight' : ''}" onclick="fetchNarrative('${s.sessionHash}')">
+            <div>
+              <span class="device">${s.device === 'mobile' ? '📱' : '💻'}</span>
+              <strong>${s.pageviews} pages, ${s.clicks} clicks</strong>
+              ${isHighlight ? ' ⭐' : ''}
+            </div>
+            <span class="meta">${s.country} · ${new Date(s.firstEvent).toLocaleTimeString()}</span>
+          </div>`;
+        }).join('');
+      } catch (e) { el.textContent = '❌ ' + e.message; }
+    }
+
+    async function fetchNarrative(sessionHash) {
+      const el = document.getElementById('narrative-result');
+      el.innerHTML = '<span class="loading">⏳ Gemini is writing the narrative...</span>';
+      try {
+        const res = await fetch(`${BASE}/api/narratives`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ site_id: SITE_ID, session_hash: sessionHash })
+        });
+        const data = await res.json();
+        if (data.error) { el.textContent = '❌ ' + data.error; return; }
+        el.innerHTML = `<div style="margin-bottom:0.5rem">📖 <strong>AI Narrative</strong></div>
+          <div style="font-size:0.95rem; line-height:1.8;">${data.narrative}</div>
+          <div style="margin-top:1rem; font-size:0.75rem; color:#666;">
+            Device: ${data.meta.device} · Country: ${data.meta.country} · Events: ${data.meta.totalEvents} · Pages: ${data.meta.uniquePages} · Converted: ${data.meta.converted ? '✅ Yes' : '❌ No'}
+          </div>`;
+      } catch (e) { el.textContent = '❌ ' + e.message; }
+    }
+
+    async function fetchStats() {
+      const el = document.getElementById('stats-result');
+      el.innerHTML = '<span class="loading">⏳ Loading...</span>';
+      try {
+        const res = await fetch(`${BASE}/api/stats?site_id=${SITE_ID}`);
+        const data = await res.json();
+        el.textContent = JSON.stringify(data, null, 2);
+      } catch (e) { el.textContent = '❌ ' + e.message; }
+    }
+
+    async function fetchLocations() {
+      const el = document.getElementById('locations-result');
+      el.innerHTML = '<span class="loading">⏳ Loading...</span>';
+      try {
+        const res = await fetch(`${BASE}/api/active-locations?site_id=${SITE_ID}`);
+        const data = await res.json();
+        el.textContent = data.locations.length 
+          ? JSON.stringify(data.locations, null, 2) 
+          : 'No active users in the last 5 minutes.';
+      } catch (e) { el.textContent = '❌ ' + e.message; }
+    }
+  </script>
+</body>
+</html>

@@ -12,6 +12,12 @@ const geoCache = new Map<string, { data: GeoResult; expiry: number }>();
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 export async function lookupGeoIP(ip: string): Promise<GeoResult | null> {
+  // Skip private/local IPs — they'll never resolve and waste 2-3s
+  if (!ip || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') ||
+      ip.startsWith('10.') || ip.startsWith('172.') || ip === 'localhost') {
+    return null;
+  }
+
   // Check cache first
   const cached = geoCache.get(ip);
   if (cached && cached.expiry > Date.now()) {

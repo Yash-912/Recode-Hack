@@ -1,5 +1,37 @@
-node_modules
-# Keep environment variables out of version control
-.env
+# ─── Dependencies ─────────────────────────
+node_modules/
 
-/lib/generated/prisma
+# ─── Next.js Build Output ────────────────
+.next/
+out/
+
+# ─── Environment Variables ───────────────
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ─── Prisma ──────────────────────────────
+prisma/migrations/
+
+# ─── Debug / Testing ────────────────────
+*.log
+npm-debug.log*
+
+# ─── OS Files ────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── IDE ─────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Vercel ──────────────────────────────
+.vercel
+
+# ─── TypeScript ──────────────────────────
+*.tsbuildinfo
+next-env.d.ts

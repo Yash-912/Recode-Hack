@@ -6,23 +6,28 @@
 (function () {
   'use strict';
 
-  const siteId = document.currentScript?.dataset?.site;
+  // Capture script element at parse time (before async defer moves it)
+  var scripts = document.getElementsByTagName('script');
+  var currentScript = scripts[scripts.length - 1];
+
+  var siteId = currentScript.getAttribute('data-site');
   if (!siteId) return;
 
-  // Use relative path for same-origin, or absolute for cross-origin
-  const endpoint =
-    document.currentScript?.dataset?.endpoint ||
-    new URL('/api/collect', document.currentScript?.src || location.origin).href;
+  var endpoint =
+    currentScript.getAttribute('data-endpoint') ||
+    new URL('/api/collect', currentScript.src || location.origin).href;
 
   function send(payload) {
-    const data = JSON.stringify({
+    var data = JSON.stringify({
       site_id: siteId,
       url: location.href,
       referrer: document.referrer || null,
       screen_w: screen.width,
       screen_h: screen.height,
       ts: Date.now(),
-      ...payload,
+      type: payload.type,
+      x_pct: payload.x_pct || null,
+      y_pct: payload.y_pct || null,
     });
 
     // sendBeacon — fire-and-forget, never blocks main thread
@@ -42,7 +47,6 @@
       type: 'click',
       x_pct: parseFloat(((e.clientX / window.innerWidth) * 100).toFixed(2)),
       y_pct: parseFloat(((e.clientY / window.innerHeight) * 100).toFixed(2)),
-      target: e.target.tagName,
     });
   }
 

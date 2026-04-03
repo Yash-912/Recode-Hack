@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Insight-OS — XAI Test Panel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #e5e5e5; padding: 2rem; }
+    h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
+    .subtitle { color: #888; margin-bottom: 2rem; font-size: 0.9rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .card { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 1.5rem; }
+    .card h2 { font-size: 1.1rem; color: #a78bfa; margin-bottom: 1rem; }
+    .badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 99px; background: #2d1b69; color: #c4b5fd; margin-left: 8px; }
+    button { padding: 0.6rem 1.2rem; font-size: 0.85rem; cursor: pointer; background: #7c3aed; color: white; border: none; border-radius: 6px; }
+    button:hover { background: #6d28d9; }
+    .result { margin-top: 1rem; padding: 1rem; background: #0d0d0d; border-radius: 8px; font-size: 0.85rem; line-height: 1.6; min-height: 60px; overflow-y: auto; max-height: 400px; }
+    .loading { color: #666; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .signal { padding: 0.75rem 1rem; margin-bottom: 0.75rem; border-radius: 8px; border-left: 4px solid; }
+    .signal.critical { border-color: #ef4444; background: #1a0505; }
+    .signal.warning { border-color: #f59e0b; background: #1a1305; }
+    .signal.info { border-color: #3b82f6; background: #05101a; }
+    .signal .title { font-weight: 600; }
+    .signal .body { font-size: 0.8rem; color: #aaa; margin-top: 4px; }
+    .signal .xai-row { margin-top: 8px; padding-top: 8px; border-top: 1px solid #222; font-size: 0.75rem; color: #888; }
+    .confidence { display: inline-block; padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 0.7rem; }
+    .conf-high { background: #064e3b; color: #6ee7b7; }
+    .conf-med { background: #713f12; color: #fbbf24; }
+    .conf-low { background: #7f1d1d; color: #fca5a5; }
+    .evidence { background: #111; border: 1px solid #222; border-radius: 6px; padding: 0.75rem; margin-top: 0.75rem; font-family: monospace; font-size: 0.75rem; color: #888; white-space: pre-wrap; }
+    .full-width { grid-column: 1 / -1; }
+    .session { padding: 0.6rem 0.8rem; margin-bottom: 0.4rem; background: #111; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; }
+    .session:hover { background: #1a1a2e; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Insight-OS — Explainable AI (XAI)</h1>
+  <p class="subtitle">Every AI insight comes with evidence chains, confidence scores, and reasoning transparency.</p>
+
+  <div class="grid">
+    <!-- XAI Signal Cards -->
+    <div class="card full-width">
+      <h2>⚡ XAI Signal Cards <span class="badge">POST /api/signals</span></h2>
+      <p style="font-size:0.8rem; color:#666; margin-bottom:1rem;">Each card shows: conclusion + confidence + reasoning + evidence used</p>
+      <button onclick="fetchXAISignals()">Generate XAI Insights</button>
+      <div id="signals-result" class="result">Click the button to see explainable AI in action...</div>
+      <div id="signals-evidence" class="evidence" style="display:none;"></div>
+    </div>
+
+    <!-- Sessions for Narrative -->
+    <div class="card">
+      <h2>👤 Sessions</h2>
+      <button onclick="fetchSessions()">Load Sessions</button>
+      <div id="sessions-result" class="result">Load sessions, then click one for XAI narrative...</div>
+    </div>
+
+    <!-- XAI Narrative -->
+    <div class="card">
+      <h2>📖 XAI Narrative <span class="badge">POST /api/narratives</span></h2>
+      <p style="font-size:0.8rem; color:#666; margin-bottom:0.5rem;">Story + intent + reasoning chain</p>
+      <div id="narrative-result" class="result">← Select a session...</div>
+    </div>
+
+    <!-- XAI Heatmap Opinion -->
+    <div class="card full-width">
+      <h2>🔥 XAI Heatmap Opinion <span class="badge">POST /api/heatmap/opinion</span></h2>
+      <p style="font-size:0.8rem; color:#666; margin-bottom:1rem;">Statistical click analysis + AI UX recommendation with evidence</p>
+      <button onclick="fetchHeatmapOpinion()">Analyze Click Patterns</button>
+      <div id="heatmap-result" class="result">Click to analyze your click heatmap patterns...</div>
+    </div>
+  </div>
+
+  <script>
+    const SITE = 'test-site-id';
+
+    function confBadge(c) {
+      const cls = c >= 80 ? 'conf-high' : c >= 50 ? 'conf-med' : 'conf-low';
+      return `<span class="confidence ${cls}">${c}% confidence</span>`;
+    }
+
+    async function fetchXAISignals() {
+      const el = document.getElementById('signals-result');
+      const ev = document.getElementById('signals-evidence');
+      el.innerHTML = '<span class="loading">⏳ Gemini is analyzing with evidence chains...</span>';
+      try {
+        const res = await fetch('/api/signals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ site_id: SITE }) });
+        const data = await res.json();
+        if (data.error) { el.textContent = '❌ ' + data.error; return; }
+        el.innerHTML = data.signals.map(s => `
+          <div class="signal ${s.severity}">
+            <div class="title">${s.severity.toUpperCase()}: ${s.title} ${confBadge(s.confidence)}</div>
+            <div class="body">${s.body}</div>
+            <div class="xai-row">
+              <strong>🔍 Reasoning:</strong> ${s.reasoning}<br>
+              <strong>📊 Evidence used:</strong> ${(s.evidence_used || []).join(', ')}
+            </div>
+          </div>`).join('');
+        ev.style.display = 'block';
+        ev.innerHTML = '<strong>📋 Full Evidence Provided to AI:</strong>\n' + JSON.stringify(data.xai, null, 2);
+      } catch (e) { el.textContent = '❌ ' + e.message; }
+    }
+
+    async function fetchSessions() {
+      const el = document.getElementById('sessions-result');
+      el.innerHTML = '<span class="loading">⏳ Loading...</span>';
+      try {
+        const res = await fetch('/api/sessions?site_id=' + SITE);
+        const data = await res.json();
+        if (!data.sessions?.length) { el.textContent = 'No sessions found.'; return; }
+        el.innerHTML = data.sessions.map(s =>
+          `<div class="session" onclick="fetchXAINarrative('${s.sessionHash}')">
+            <span>${s.device === 'mobile' ? '📱' : '💻'} ${s.pageviews}pv ${s.clicks}clicks</span>
+            <span style="color:#888;font-size:0.8rem">${s.country}</span>
+          </div>`).join('');
+      } catch (e) { el.textContent = '❌ ' + e.message; }
+    }
+
+    async function fetchXAINarrative(hash) {
+      const el = document.getElementById('narrative-result');
+      el.innerHTML = '<span class="loading">⏳ Gemini is writing narrative + reasoning...</span>';
+      try {
+        const res = await fetch('/api/narratives', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ site_id: SITE, session_hash: hash }) });
+        const data = await res.json();
+        if (data.error) { el.textContent = '❌ ' + data.error; return; }
+        el.innerHTML = `
+          <div style="margin-bottom:8px"><strong>📖 Narrative:</strong> ${data.narrative}</div>
+          <div style="margin-bottom:8px;color:#a78bfa"><strong>🎯 Intent:</strong> ${data.intent} ${confBadge(data.confidence)}</div>
+          <div style="margin-bottom:8px;color:#888"><strong>🔍 Reasoning:</strong> ${data.reasoning}</div>
+          <div style="color:#f59e0b"><strong>💡 Key Observation:</strong> ${data.key_observation}</div>
+          <div class="evidence" style="margin-top:12px"><strong>📋 Evidence:</strong>\n${JSON.stringify(data.xai?.evidence, null, 2)}</div>`;
+      } catch (e) { el.textContent = '❌ ' + e.message; }
+    }
+
+    async function fetchHeatmapOpinion() {
+      const el = document.getElementById('heatmap-result');
+      el.innerHTML = '<span class="loading">⏳ Computing click statistics + asking Gemini...</span>';
+      try {
+        const res = await fetch('/api/heatmap/opinion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ site_id: SITE, url: 'localhost:3000' }) });
+        const data = await res.json();
+        if (data.error) { el.textContent = '❌ ' + (data.error || 'Error'); return; }
+        el.innerHTML = `
+          <div style="margin-bottom:8px"><strong>🔥 Opinion:</strong> ${data.opinion} ${confBadge(data.confidence)}</div>
+          <div style="margin-bottom:8px;color:#888"><strong>🔍 Reasoning:</strong> ${data.reasoning}</div>
+          <div style="margin-bottom:8px;color:#4ade80"><strong>✅ Recommendation:</strong> ${data.recommendation}</div>
+          <div style="color:#f59e0b"><strong>💡 Key Finding:</strong> ${data.key_finding}</div>
+          <div class="evidence" style="margin-top:12px"><strong>📋 Statistical Evidence:</strong>\n${JSON.stringify(data.xai?.evidence, null, 2)}\n\n<strong>Methods:</strong> ${(data.xai?.statistical_methods || []).join(', ')}</div>`;
+      } catch (e) { el.textContent = '❌ ' + e.message; }
+    }
+  </script>
+</body>
+</html>

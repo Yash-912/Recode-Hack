@@ -57,6 +57,13 @@ async function checkVelocity(ip: string): Promise<boolean> {
 export interface BotCheckResult {
   isBot: boolean;
   reason: string | null;
+  xai: {
+    layer: number | null;
+    layer_name: string | null;
+    pattern_matched: string | null;
+    confidence: number;
+    checks_performed: string[];
+  };
 }
 
 export async function detectBot(
@@ -64,21 +71,42 @@ export async function detectBot(
   ip: string,
   referrer: string
 ): Promise<BotCheckResult> {
+  const checksPerformed: string[] = [];
+
   // Layer 1 — UA check
-  if (checkUABot(ua)) {
-    return { isBot: true, reason: 'ua_blocklist' };
+  checksPerformed.push('ua_blocklist');
+  const lowerUA = ua.toLowerCase();
+  const matchedUA = BOT_UA_PATTERNS.find(p => lowerUA.includes(p));
+  if (matchedUA) {
+    return {
+      isBot: true, reason: 'ua_blocklist',
+      xai: { layer: 1, layer_name: 'User-Agent Blocklist', pattern_matched: matchedUA, confidence: 95, checks_performed: checksPerformed }
+    };
   }
 
-  // Layer 3 — Referrer spam (check before velocity to avoid spending Redis calls)
-  if (checkReferrerSpam(referrer)) {
-    return { isBot: true, reason: 'referrer_spam' };
+  // Layer 3 — Referrer spam
+  checksPerformed.push('referrer_spam');
+  const lowerRef = referrer?.toLowerCase() || '';
+  const matchedRef = SPAM_REFERRERS.find(d => lowerRef.includes(d));
+  if (matchedRef) {
+    return {
+      isBot: true, reason: 'referrer_spam',
+      xai: { layer: 3, layer_name: 'Referrer Spam Filter', pattern_matched: matchedRef, confidence: 90, checks_performed: checksPerformed }
+    };
   }
 
   // Layer 2 — Velocity check (Redis)
+  checksPerformed.push('velocity_check');
   const isFast = await checkVelocity(ip);
   if (isFast) {
-    return { isBot: true, reason: 'velocity' };
+    return {
+      isBot: true, reason: 'velocity',
+      xai: { layer: 2, layer_name: 'IP Velocity (Redis)', pattern_matched: `>${10} events in 10s from ${ip}`, confidence: 85, checks_performed: checksPerformed }
+    };
   }
 
-  return { isBot: false, reason: null };
+  return {
+    isBot: false, reason: null,
+    xai: { layer: null, layer_name: null, pattern_matched: null, confidence: 98, checks_performed: checksPerformed }
+  };
 }
