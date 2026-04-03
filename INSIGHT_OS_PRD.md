@@ -12,7 +12,7 @@
 1. [Product Vision](#1-product-vision)
 2. [What Makes Us Different](#2-what-makes-us-different)
 3. [System Architecture](#3-system-architecture)
-4. [Database Schema](#4-database-schema)
+4. [Prisma Schema](#4-database-schema)
 5. [Feature Specifications](#5-feature-specifications)
 6. [API Contract](#6-api-contract)
 7. [The Tracker Script](#7-the-tracker-script)
@@ -63,7 +63,7 @@ Paste a `< 5KB` snippet on your site → get a Mission Control dashboard with re
 
 **Layer 1 — Killer UX: Mission Control Layout**  
 Ditch the standard sidebar + charts everyone builds. Design it like a command center — dark theme, single screen, no scrolling:
-- **Left column:** Live event feed ticking in like a terminal (Supabase Realtime)
+- **Left column:** Live event feed ticking in like a terminal (Redis + SSE)
 - **Center:** Annotated line chart with auto-labelled spikes ("Reddit spike", "Bot cluster")
 - **Right column:** AI Signal Cards in plain English
 - **Bottom bar:** Funnel health — green/yellow/red per step
@@ -72,7 +72,7 @@ Ditch the standard sidebar + charts everyone builds. Design it like a command ce
 Every incoming event does two writes simultaneously. Dashboard charts *never* query raw events — always O(hours) not O(events). This is the direct answer to the judge's DB optimization criterion.
 
 **Layer 3 — Unexpected Feature: Session Narratives**  
-Each session's event stream is reconstructed into a human-readable story via Claude API. Judges have never seen this in a student analytics project.
+Each session's event stream is reconstructed into a human-readable story via Gemini API. Judges have never seen this in a student analytics project.
 
 ---
 
@@ -100,12 +100,12 @@ Each session's event stream is reconstructed into a human-readable story via Cla
                     │
                     ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Supabase (Postgres)                       │
+│                    Neon (PostgreSQL via Prisma)                       │
 │                                                              │
 │   events          hourly_stats       funnels                │
 │   (raw, indexed)  (pre-aggregated)   (JSONB steps)          │
 └───────────────────┬─────────────────────────────────────────┘
-                    │  Supabase Realtime (WebSocket)
+                    │  Redis + SSE (WebSocket)
                     ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                Mission Control Dashboard                     │
@@ -120,22 +120,23 @@ Each session's event stream is reconstructed into a human-readable story via Cla
 └─────────────────────────────────────────────────────────────┘
                     │
                     ▼
-         Claude API (Signal Cards + Session Narratives + Heatmap Opinion)
+         Gemini API (Signal Cards + Session Narratives + Heatmap Opinion)
 ```
 
 ### Architecture Principles
 
 **Dual-Write on Ingest**  
 Every event that hits `/api/collect` performs two DB operations in one transaction:
-```sql
--- Write 1: Raw event (for heatmaps, session stitching, drill-down)
-INSERT INTO events (...) VALUES (...);
-
--- Write 2: Pre-aggregated counter (for dashboard charts — always fast)
-INSERT INTO hourly_stats (site_id, hour, pageviews)
-VALUES ($1, DATE_TRUNC('hour', NOW()), 1)
-ON CONFLICT (site_id, hour)
-DO UPDATE SET pageviews = hourly_stats.pageviews + 1;
+```javascript
+// Prisma Dual-Write transaction
+await prisma.$transaction([
+  prisma.event.create({ data: { /* ... */ } }),
+  prisma.hourlyStat.upsert({
+    where: { siteId_hour: { siteId, hour } },
+    update: { pageviews: { increment: 1 } },
+    create: { siteId, hour, pageviews: 1 }
+  })
+]);
 ```
 
 Dashboard charts query `hourly_stats` only. Load time is constant regardless of event volume.
@@ -155,66 +156,70 @@ Before any DB write, every event passes through:
 
 ---
 
-## 4. Database Schema
+## 4. Prisma Schema
 
-### `sites`
-```sql
-CREATE TABLE sites (
-  id          TEXT PRIMARY KEY,           -- e.g. "abc123" (generated)
-  owner_id    UUID REFERENCES auth.users,
-  domain      TEXT NOT NULL,              -- e.g. "mystore.com"
-  created_at  TIMESTAMPTZ DEFAULT NOW()
-);
-```
+### Schema (`schema.prisma`)
+```prisma
+generator client {
+  provider = "prisma-client-js"
+}
 
-### `events` (append-only, never updated)
-```sql
-CREATE TABLE events (
-  id            BIGSERIAL PRIMARY KEY,
-  site_id       TEXT REFERENCES sites(id),
-  type          TEXT NOT NULL,            -- 'pageview' | 'click' | 'custom'
-  url           TEXT,
-  referrer      TEXT,
-  country       TEXT,                     -- 2-letter from Geo-IP
-  x_pct         FLOAT,                   -- click X as % of viewport (heatmap)
-  y_pct         FLOAT,                   -- click Y as % of viewport (heatmap)
-  session_hash  TEXT,                    -- SHA256(IP+UA+Date)
-  ua_raw        TEXT,
-  is_bot        BOOLEAN DEFAULT FALSE,
-  ts            TIMESTAMPTZ DEFAULT NOW()
-);
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
--- Indexes (critical for funnel + heatmap queries)
-CREATE INDEX idx_events_site_ts     ON events(site_id, ts);
-CREATE INDEX idx_events_session     ON events(session_hash);
-CREATE INDEX idx_events_url         ON events(site_id, url);
-```
+model Site {
+  id        String   @id @default(cuid())
+  domain    String
+  ownerId   String?  // References NextAuth user
+  createdAt DateTime @default(now())
+  events    Event[]
+  funnels   Funnel[]
+}
 
-### `hourly_stats` (pre-aggregated — dashboard reads this only)
-```sql
-CREATE TABLE hourly_stats (
-  site_id           TEXT,
-  hour              TIMESTAMPTZ,          -- DATE_TRUNC('hour', ts)
-  pageviews         INT DEFAULT 0,
-  clicks            INT DEFAULT 0,
-  unique_sessions   INT DEFAULT 0,
-  top_pages         JSONB DEFAULT '[]',  -- [{url, count}] top 5
-  top_referrers     JSONB DEFAULT '[]',  -- [{referrer, count}] top 5
-  top_countries     JSONB DEFAULT '[]',  -- [{country, count}] top 5
-  PRIMARY KEY (site_id, hour)
-);
-```
+model Event {
+  id          BigInt   @id @default(autoincrement())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id])
+  type        String
+  url         String?
+  referrer    String?
+  country     String?
+  xPct        Float?
+  yPct        Float?
+  sessionHash String?
+  uaRaw       String?
+  isBot       Boolean  @default(false)
+  ts          DateTime @default(now())
 
-### `funnels`
-```sql
-CREATE TABLE funnels (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  site_id       TEXT REFERENCES sites(id),
-  name          TEXT NOT NULL,
-  steps         JSONB NOT NULL,          -- ["/", "/pricing", "/checkout"]
-  window_hours  INT DEFAULT 24,
-  created_at    TIMESTAMPTZ DEFAULT NOW()
-);
+  @@index([siteId, ts])
+  @@index([sessionHash])
+  @@index([siteId, url])
+}
+
+model HourlyStat {
+  siteId         String
+  hour           DateTime
+  pageviews      Int      @default(0)
+  clicks         Int      @default(0)
+  uniqueSessions Int      @default(0)
+  topPages       Json     @default("[]")
+  topReferrers   Json     @default("[]")
+  topCountries   Json     @default("[]")
+
+  @@id([siteId, hour])
+}
+
+model Funnel {
+  id          String   @id @default(uuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id])
+  name        String
+  steps       Json     // Array of URLs
+  windowHours Int      @default(24)
+  createdAt   DateTime @default(now())
+}
 ```
 
 ### Schema Flexibility Note for Judges
@@ -262,7 +267,7 @@ Single-screen dark-themed command center. Layout:
 ```
 
 **Live Event Feed**  
-Powered by Supabase Realtime. New events push instantly via WebSocket and prepend to the feed list with a fade-in animation. Shows: event type icon + URL + country flag + time ago.
+Powered by Redis + SSE. New events push instantly via WebSocket and prepend to the feed list with a fade-in animation. Shows: event type icon + URL + country flag + time ago.
 
 **Annotated Line Chart**  
 Built with Recharts. Queries `hourly_stats` for selected time range (24h / 7d / 30d). Spike detection: if an hour's pageviews exceed 2x the rolling average, auto-label with source (detected from `top_referrers` for that hour).
@@ -273,7 +278,7 @@ Built with Recharts. Queries `hourly_stats` for selected time range (24h / 7d / 
 
 ### 5.3 AI Signal Layer
 
-One Claude API call per dashboard load. Input is the last 24h of `hourly_stats` + current funnel completion rates. Output is 3–5 structured insight cards.
+One Gemini API call per dashboard load. Input is the last 24h of `hourly_stats` + current funnel completion rates. Output is 3–5 structured insight cards.
 
 **Prompt structure:**
 ```
@@ -305,7 +310,7 @@ Each session's ordered events are reconstructed into a human-readable story.
 **How it works:**
 1. Query `events` WHERE `session_hash = X` ORDER BY `ts ASC`
 2. Format as a plain text journey: `"Landed on / via Instagram → Scrolled → Clicked Pricing → Dropped at signup"`
-3. Pass to Claude with device + country context
+3. Pass to Gemini with device + country context
 4. Render as a 2–3 sentence narrative in the Sessions tab
 
 **Example narrative:**
@@ -358,7 +363,7 @@ step2 AS (
 4. Blend with `globalCompositeOperation = 'screen'` — dense areas glow red, sparse areas cool blue
 
 **AI Opinion (the differentiator):**
-After rendering, call Claude with:
+After rendering, call Gemini with:
 ```
 "Here are click coordinates (as %) on ${url}. 
  Viewport: 1440x900. 
@@ -378,7 +383,7 @@ Three-layer system applied before every DB write:
 Static list of 200+ known bot user-agent strings (Googlebot, bingbot, Slurp, DuckDuckBot, Baiduspider, etc.). If `ua_raw` contains any entry → `is_bot = true`.
 
 **Layer 2 — Velocity Check**  
-Track request count per IP per 10-second window in memory (Map with TTL). If > 10 events in 10s → `is_bot = true`. Reset window on expiry.
+Track request count per IP per 10-second window in Redis via Upstash. If > 10 events in 10s → `is_bot = true`. Reset window on expiry.
 
 **Layer 3 — Referrer Spam**  
 Static list of known spam referrer domains. If `referrer` matches → `is_bot = true`.
@@ -389,7 +394,7 @@ Flagged events are stored (`is_bot = true`) but excluded from all dashboard quer
 
 ### 5.8 Live Geo Map
 
-Every pageview event triggers a server-side Geo-IP lookup (ip-api.com, batched per 100ms to stay under rate limit). Lat/long pushed via Supabase Realtime to the dashboard.
+Every pageview event triggers a server-side Geo-IP lookup (ip-api.com, batched per 100ms to stay under rate limit). Lat/long pushed via Redis + SSE to the dashboard.
 
 **Rendered with Leaflet.js:** World map with pulsing dots at each active user's location. Dot fades out after 30 seconds. Dark map tile theme to match Mission Control aesthetic.
 
@@ -427,7 +432,7 @@ Access-Control-Allow-Methods: POST, OPTIONS
 Returns pre-aggregated data from `hourly_stats`. Dashboard primary data source.
 
 ### `GET /api/events/live?site_id=X`
-Server-Sent Events stream OR Supabase Realtime subscription. Pushes new events to Live Feed.
+Server-Sent Events stream OR Redis + SSE subscription. Pushes new events to Live Feed.
 
 ### `GET /api/sessions?site_id=X&limit=20`
 Returns last 20 sessions with their ordered event list for Session Narratives.
@@ -514,7 +519,7 @@ esbuild tracker.js --bundle --minify --outfile=public/tracker.js
 
 ## 8. AI Layer Design
 
-### Signal Cards — Claude API call
+### Signal Cards — Gemini API call
 ```javascript
 const stats = await getHourlyStats(siteId, '24h');
 const funnelRates = await getFunnelRates(siteId);
@@ -541,14 +546,14 @@ const response = await fetch('https://api.anthropic.com/v1/messages', {
 });
 ```
 
-### Session Narrative — Claude API call
+### Session Narrative — Gemini API call
 ```javascript
 const events = await getSessionEvents(sessionHash);
 const journey = events.map(e =>
   e.type === 'pageview' ? `Visited ${e.url}` : `Clicked at (${e.x_pct}%, ${e.y_pct}%)`
 ).join(' → ');
 
-// Pass journey + device + country → Claude returns 2-3 sentence narrative
+// Pass journey + device + country → Gemini returns 2-3 sentence narrative
 ```
 
 ---
@@ -562,9 +567,9 @@ const journey = events.map(e =>
 | Charts | Recharts | Composable, easy annotation layer |
 | Map | Leaflet.js | Free, lightweight, dark tile support |
 | Heatmap | Canvas API (vanilla) | No library needed, full control |
-| Database | Supabase (Postgres) | Free tier, Realtime built-in, Auth |
-| Realtime | Supabase Realtime | WebSocket out of the box, no setup |
-| AI | Anthropic Claude API | Signal cards + narratives + heatmap opinion |
+| Database | Neon (PostgreSQL via Prisma) | Free tier, Realtime built-in, Auth |
+| Realtime | Redis + SSE | WebSocket out of the box, no setup |
+| AI | Google Gemini API | Signal cards + narratives + heatmap opinion |
 | Geo-IP | ip-api.com | Free, no key, 45 req/min |
 | Tracker build | esbuild | Sub-second builds, tiny output |
 | Deploy | Vercel | Free tier, monorepo support |
