@@ -33,6 +33,8 @@ model Event {
   url         String?
   referrer    String?
   country     String?  // 2-letter code from Geo-IP
+  lat         Float?   // Geo-IP latitude
+  lon         Float?   // Geo-IP longitude
   xPct        Float?   @map("x_pct")   // click X as % of viewport
   yPct        Float?   @map("y_pct")   // click Y as % of viewport
   sessionHash String?  @map("session_hash")

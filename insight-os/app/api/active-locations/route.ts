@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 3B.4 — Get recent sessions with country data
+    // 3B.4 — Get recent sessions with country + coordinate data
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
 
     const recentEvents = await prisma.event.findMany({
@@ -25,6 +25,8 @@ export async function GET(req: Request) {
       select: {
         sessionHash: true,
         country: true,
+        lat: true,
+        lon: true,
         url: true,
         ts: true,
       },
@@ -37,17 +39,25 @@ export async function GET(req: Request) {
     for (const ev of recentEvents) {
       if (ev.sessionHash && !sessionsMap.has(ev.sessionHash)) {
         const country = ev.country || 'Unknown';
-        const [lat, lon] = getCountryCoords(country);
         
-        // Add slight random jitter so dots from same country don't stack
-        const jitterLat = lat + (Math.random() - 0.5) * 4;
-        const jitterLon = lon + (Math.random() - 0.5) * 4;
+        // Use actual geo-IP coordinates if available, otherwise fall back to country center
+        let lat = ev.lat;
+        let lon = ev.lon;
+        
+        if (lat == null || lon == null) {
+          const [fallbackLat, fallbackLon] = getCountryCoords(country);
+          lat = fallbackLat;
+          lon = fallbackLon;
+          // Add slight jitter only for fallback country-center coords
+          lat += (Math.random() - 0.5) * 4;
+          lon += (Math.random() - 0.5) * 4;
+        }
 
         sessionsMap.set(ev.sessionHash, {
           sessionHash: ev.sessionHash,
           country,
-          lat: jitterLat,
-          lon: jitterLon,
+          lat,
+          lon,
           url: ev.url,
           ts: ev.ts,
         });
@@ -60,3 +70,4 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

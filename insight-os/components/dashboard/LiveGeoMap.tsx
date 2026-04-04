@@ -1,39 +1,89 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import { useEffect, useState, useCallback } from 'react';
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin, Radio } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 interface ActiveLocation {
   lat: number;
   lon: number;
   country: string;
   sessionHash: string;
-  lastSeen: string;
+  url: string;
+  ts: string;
+  lastSeen: number;
+}
+
+// Auto-fit the map to show all active markers
+function FitBounds({ locations }: { locations: ActiveLocation[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (locations.length === 0) return;
+    
+    const bounds = locations.map(l => [l.lat, l.lon] as [number, number]);
+    
+    if (bounds.length === 1) {
+      // Single user — center on them with a reasonable zoom
+      map.setView(bounds[0], 5, { animate: true });
+    } else if (bounds.length > 1) {
+      // Multiple users — fit all markers with padding
+      const L = require('leaflet');
+      const leafletBounds = L.latLngBounds(bounds);
+      map.fitBounds(leafletBounds, { padding: [60, 60], maxZoom: 6, animate: true });
+    }
+  }, [locations.length]); // Only re-fit when count changes
+
+  return null;
 }
 
 export default function LiveGeoMap() {
   const [locations, setLocations] = useState<ActiveLocation[]>([]);
   const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const siteId = searchParams.get('site') || 'cmnjoenvi000004jp2ge44k3j';
+
+  const fetchLocations = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/active-locations?site_id=${siteId}`);
+      const data = await res.json();
+      if (data.locations) {
+        const now = Date.now();
+        setLocations(prev => {
+          const existingMap = new Map(prev.map(d => [d.sessionHash, d]));
+
+          for (const loc of data.locations) {
+            existingMap.set(loc.sessionHash, { ...loc, lastSeen: now });
+          }
+
+          // Remove dots inactive for >30s
+          return Array.from(existingMap.values()).filter(
+            d => now - d.lastSeen < 30000
+          );
+        });
+      }
+    } catch (e) {
+      console.error('[GeoMap] Fetch error:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [siteId]);
 
   useEffect(() => {
-    const fetchLocations = async () => {
-      try {
-        const res = await fetch('/api/active-locations?site_id=test-site-id');
-        const data = await res.json();
-        setLocations(data.locations || []);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchLocations();
     const interval = setInterval(fetchLocations, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchLocations]);
+
+  // Age-based opacity for fade-out effect
+  const getOpacity = (lastSeen: number) => {
+    const age = Date.now() - lastSeen;
+    if (age < 10000) return 0.9;
+    if (age < 20000) return 0.6;
+    return 0.3;
+  };
 
   return (
     <div className="p-6 flex flex-col gap-6 w-full h-[calc(100vh-140px)]">
@@ -63,8 +113,8 @@ export default function LiveGeoMap() {
         )}
         
         <MapContainer 
-          center={[20, 0]} 
-          zoom={2.5} 
+          center={[20, 78]} 
+          zoom={4} 
           style={{ height: '100%', width: '100%', background: '#0a0a0a' }}
           zoomControl={false}
           scrollWheelZoom={true}
@@ -75,22 +125,28 @@ export default function LiveGeoMap() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           />
           
-          {locations.map((loc, i) => (
+          {/* Auto-fit to show all markers */}
+          <FitBounds locations={locations} />
+          
+          {locations.map((loc) => (
             <CircleMarker
-              key={i}
+              key={loc.sessionHash}
               center={[loc.lat, loc.lon]}
               radius={8}
               pathOptions={{
                 color: '#ef4444', 
                 fillColor: '#dc2626', 
-                fillOpacity: 0.7,
-                weight: 2
+                fillOpacity: getOpacity(loc.lastSeen),
+                weight: 2,
+                opacity: getOpacity(loc.lastSeen),
               }}
             >
               <Popup>
                 <div className="text-xs font-mono">
                   <strong className="text-white">{loc.country}</strong><br/>
-                  <span className="text-zinc-400">Session: {loc.sessionHash.substring(0, 8)}</span>
+                  <span className="text-zinc-400">Page: {loc.url}</span><br/>
+                  <span className="text-zinc-400">Time: {new Date(loc.ts).toLocaleTimeString()}</span><br/>
+                  <span className="text-zinc-500">Session: {loc.sessionHash?.substring(0, 8)}</span>
                 </div>
               </Popup>
             </CircleMarker>
@@ -111,7 +167,7 @@ export default function LiveGeoMap() {
         )}
       </div>
       
-      {/* Overriding Leaflet default styles to match our Obsidian theme */}
+      {/* Overriding Leaflet default styles + pulse animation on markers */}
       <style dangerouslySetInnerHTML={{__html: `
         .leaflet-container {
           background: #0a0a0a !important;
@@ -124,6 +180,21 @@ export default function LiveGeoMap() {
         }
         .leaflet-popup-tip {
           background: #111;
+        }
+        /* Pulsing ring animation on all circle markers */
+        .leaflet-interactive {
+          animation: geo-pulse 2s ease-in-out infinite;
+          transform-origin: center center;
+        }
+        @keyframes geo-pulse {
+          0%, 100% {
+            stroke-width: 2;
+            filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.4));
+          }
+          50% {
+            stroke-width: 4;
+            filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.8));
+          }
         }
       `}} />
     </div>

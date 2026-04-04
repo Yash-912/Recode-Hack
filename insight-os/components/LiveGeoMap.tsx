@@ -20,10 +20,10 @@ interface LocationDot {
 }
 
 interface LiveGeoMapProps {
-  siteId: string;
+  siteId?: string;
 }
 
-export default function LiveGeoMap({ siteId }: LiveGeoMapProps) {
+export default function LiveGeoMap({ siteId = 'cmnjoenvi000004jp2ge44k3j' }: LiveGeoMapProps) {
   const [dots, setDots] = useState<LocationDot[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 

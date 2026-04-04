@@ -121,6 +121,8 @@ export async function POST(req: Request) {
           xPct: payload.x_pct || null,
           yPct: payload.y_pct || null,
           country: geoData?.country || null,
+          lat: geoData?.lat || null,
+          lon: geoData?.lon || null,
           sessionHash: sessionHash,
           uaRaw: ua,
           isBot: botCheck.isBot || (payload.is_bot_honeypot === true),
