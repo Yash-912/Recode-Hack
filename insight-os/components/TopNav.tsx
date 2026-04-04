@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, Globe2, Eye, LayoutDashboard, Funnel, Flame, Users, Map, Server } from 'lucide-react';
+import { Activity, Globe2, Eye, LayoutDashboard, Funnel, Flame, Users, Map, Server, FileText } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -28,6 +28,7 @@ export default function TopNav() {
     { name: 'Heatmap', path: '/dashboard/heatmap', icon: Flame },
     { name: 'Sessions', path: '/dashboard/sessions', icon: Users },
     { name: 'Live Map', path: '/dashboard/map', icon: Map },
+    { name: 'Reports', path: '/dashboard/reports', icon: FileText },
     { name: 'Endpoints', path: '/dashboard/sites', icon: Server },
   ];
 
