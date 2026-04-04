@@ -2,6 +2,8 @@ import TopNav from '@/components/TopNav';
 import PhaseTracker from '@/components/PhaseTracker';
 import PageTransition from '@/components/dashboard/PageTransition';
 
+export const dynamic = 'force-dynamic';
+
 export default function DashboardLayout({
   children,
 }: {
