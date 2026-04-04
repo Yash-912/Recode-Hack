@@ -90,18 +90,18 @@
 
 | # | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| 1C.1 | Set up NextAuth Credentials provider | C | ⬜ | `/app/api/auth/[...nextauth]/route.ts` |
-| 1C.2 | Create `/login` page — dark obsidian theme, crimson accent button | C | ⬜ | Match Reconstruction theme |
-| 1C.3 | Protect `/dashboard` route — redirect to `/login` if no session | C | ⬜ | Middleware or layout check |
-| 1C.4 | Create Mission Control layout — obsidian bg, crimson radial gradient, 3-col grid | C | ⬜ | Left: feed, Center: chart, Right: signals |
-| 1C.5 | Set up Tailwind dark theme: obsidian `#000`, crimson `#2D0505`, accent red pulse | C | ⬜ | CSS vars for Reconstruction palette |
-| 1C.6 | Top bar component: Active Now · Today's PVs · Top Country with glassmorphic badges | C | ⬜ | Placeholder data initially |
-| 1C.7 | Site registration flow — admin enters domain, gets site_id | C | ⬜ | Writes to `sites` table |
-| 1C.8 | Bottom Funnel Health Bar (static placeholder) with 🟢🟡🔴 indicators | C | ⬜ | |
-| 1C.9 | Wire dashboard to `GET /api/stats` — loading skeletons → data states | C | ⬜ | Crimson-tinted skeleton pulse |
-| 1C.10 | Tab navigation: Overview · Funnels · Heatmap · Sessions · Live Map | C | ⬜ | Glassmorphic tab pills |
-| 1C.11 | **Locked Dashboard State** — frosted glass blur over dashboard with faint chart outlines | C | ⬜ | `backdrop-filter: blur(20px)`, red glow map behind frost |
-| 1C.12 | **Phase Tracker sidebar** — Phase 1 (Glowing Red), Phase 2, Final Phase (Locked/Frosted) | C | ⬜ | Vertical sidebar or bottom dock |
+| 1C.1 | Set up NextAuth Credentials provider | C | ✅ | `/app/api/auth/[...nextauth]/route.ts` |
+| 1C.2 | Create `/login` page — dark obsidian theme, crimson accent button | C | ✅ | Match Reconstruction theme |
+| 1C.3 | Protect `/dashboard` route — redirect to `/login` if no session | C | ✅ | Middleware or layout check |
+| 1C.4 | Create Mission Control layout — obsidian bg, crimson radial gradient, 3-col grid | C | ✅ | Left: feed, Center: chart, Right: signals |
+| 1C.5 | Set up Tailwind dark theme: obsidian `#000`, crimson `#2D0505`, accent red pulse | C | ✅ | CSS vars for Reconstruction palette |
+| 1C.6 | Top bar component: Active Now · Today's PVs · Top Country with glassmorphic badges | C | ✅ | Placeholder data initially |
+| 1C.7 | Site registration flow — admin enters domain, gets site_id | C | ✅ | Writes to `sites` table |
+| 1C.8 | Bottom Funnel Health Bar (static placeholder) with 🟢🟡🔴 indicators | C | ✅ | |
+| 1C.9 | Wire dashboard to `GET /api/stats` — loading skeletons → data states | C | ✅ | Crimson-tinted skeleton pulse |
+| 1C.10 | Tab navigation: Overview · Funnels · Heatmap · Sessions · Live Map | C | ✅ | Glassmorphic tab pills |
+| 1C.11 | **Locked Dashboard State** — frosted glass blur over dashboard with faint chart outlines | C | ✅ | `backdrop-filter: blur(20px)`, red glow map behind frost |
+| 1C.12 | **Phase Tracker sidebar** — Phase 1 (Glowing Red), Phase 2, Final Phase (Locked/Frosted) | C | ✅ | Vertical sidebar or bottom dock |
 
 **Phase 1 Exit Criteria:** Events flow from browser → API → Neon DB. Dashboard shell renders with auth. Stats API returns data.
 
@@ -157,18 +157,18 @@
 
 | # | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| 2C.1 | Build Annotated Line Chart (Recharts) — crimson theme, pageviews/hour | C | ⬜ | Data from `GET /api/stats` |
-| 2C.2 | Spike detection — `<ReferenceLine>` labels for hours > 2x rolling avg | C | ⬜ | Client-side computation |
-| 2C.3 | Time range selector — 24h / 7d / 30d glassmorphic buttons | C | ⬜ | Refetch on change |
-| 2C.4 | Top Pages bar chart (Recharts) — horizontal, top 5 URLs | C | ⬜ | From `top_pages` JSONB |
-| 2C.5 | Top Referrers bar chart (Recharts) | C | ⬜ | |
-| 2C.6 | Wire top bar to real API data (Active Now, Today PVs, Top Country) | C | ⬜ | Active Now = sessions in last 5 min |
-| 2C.7 | AI Signal Cards component — XAI-powered with confidence badges | C | ⬜ | Skeleton → fade-in, calls `POST /api/signals` |
+| 2C.1 | Build Annotated Line Chart (Recharts) — crimson theme, pageviews/hour | C | ✅ | `OverviewCharts.tsx`, data from `GET /api/stats` |
+| 2C.2 | Spike detection — `<ReferenceLine>` labels for hours > 2x rolling avg | C | ✅ | Client-side avg computation in `OverviewCharts` |
+| 2C.3 | Time range selector — 24h / 7d / 30d glassmorphic buttons | C | ✅ | Crimson active glow, refetches on change |
+| 2C.4 | Top Pages bar chart (Recharts) — horizontal, top 5 URLs | C | ✅ | Aggregated from hourly JSONB `top_pages` |
+| 2C.5 | Top Referrers bar chart (Recharts) | C | ✅ | Aggregated from hourly JSONB `top_referrers` |
+| 2C.6 | Wire top bar to real API data (Active Now, Today PVs, Top Country) | C | ✅ | `TopNav.tsx` fetches `GET /api/stats` |
+| 2C.7 | AI Signal Cards component — XAI-powered with confidence badges | C | ✅ | `SignalCards.tsx`, calls `POST /api/signals` |
 | 2C.8 | ~~Create `POST /api/signals` route~~ | ~~C~~ | ✅ | **Already built (Person A Phase 3) with XAI** |
-| 2C.9 | Style Signal Cards: severity borders + XAI reasoning + confidence % | C | ⬜ | Red=critical, Yellow=warning, Blue=info |
-| 2C.10 | **Heatmap Canvas** — `<canvas>` layered over screenshot, dark bg | C | ⬜ | screenshotone.com or placeholder image |
-| 2C.11 | **Canvas Hot Zones** — radial gradient circles at x_pct/y_pct | C | ⬜ | `globalCompositeOperation = 'screen'`, red/orange glow |
-| 2C.12 | Funnel visualization — stepped bars with drop-off % badges | C | ⬜ | Green>60%, Yellow 30-60%, Red<30% |
+| 2C.9 | Style Signal Cards: severity borders + XAI reasoning + confidence % | C | ✅ | Red=critical, Yellow=warning, Blue=info |
+| 2C.10 | **Heatmap Canvas** — `<canvas>` layered over iframe, dark bg | C | ✅ | Real demo site iframe with canvas overlay |
+| 2C.11 | **Canvas Hot Zones** — radial gradient circles at x_pct/y_pct | C | ✅ | `globalCompositeOperation = 'screen'`, thermal glow |
+| 2C.12 | Funnel visualization — stepped bars with drop-off % badges | C | ✅ | Full CRUD + analysis + color-coded bars |
 
 **Phase 2 Exit Criteria:** Events are bot-filtered. Funnel analysis works. Charts load real data. Signal Cards show AI insights. Heatmap renders clicks.
 
@@ -184,12 +184,12 @@
 
 | # | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| 3A.1 | Create `POST /api/narratives` route — takes session_hash, fetches events, calls Gemini | A | ⬜ | See PRD Section 8 for prompt template |
-| 3A.2 | Format event sequence as plain-text journey string for Gemini prompt | A | ⬜ | "Visited / → Clicked Pricing → Visited /checkout → Dropped" |
-| 3A.3 | Include device (mobile/desktop from UA) and country in Gemini prompt | A | ⬜ | Parse UA server-side |
-| 3A.4 | Build Sessions tab UI — scrollable list of sessions with device icon + country flag + time | A | ⬜ | Click a session → expand narrative |
-| 3A.5 | On session click: fetch narrative from API, show loading state, render 2-3 sentence story | A | ⬜ | Lazy-fetch, not pre-generated |
-| 3A.6 | Polish: add "Most interesting session" highlight — longest session that dropped at final funnel step | A | ⬜ | The demo money shot |
+| 3A.1 | Create `POST /api/narratives` route — takes session_hash, fetches events, calls Gemini | A | ✅ | See PRD Section 8 for prompt template |
+| 3A.2 | Format event sequence as plain-text journey string for Gemini prompt | A | ✅ | "Visited / → Clicked Pricing → Visited /checkout → Dropped" |
+| 3A.3 | Include device (mobile/desktop from UA) and country in Gemini prompt | A | ✅ | Parse UA server-side |
+| 3A.4 | Build Sessions tab UI — scrollable list of sessions with device icon + country flag + time | A | ✅ | Click a session → expand narrative |
+| 3A.5 | On session click: fetch narrative from API, show loading state, render 2-3 sentence story | A | ✅ | Lazy-fetch, not pre-generated |
+| 3A.6 | Polish: add "Most interesting session" highlight — longest session that dropped at final funnel step | A | ✅ | The demo money shot |
 
 ---
 
@@ -197,13 +197,13 @@
 
 | # | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| 3B.1 | Install Leaflet.js + react-leaflet | B | ⬜ | `npm i leaflet react-leaflet` |
-| 3B.2 | Set up dark tile layer (CartoDB dark matter tiles — free, no key) | B | ⬜ | `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png` |
-| 3B.3 | Fetch lat/long from Geo-IP lookup — store on event or look up on-demand | B | ⬜ | ip-api.com returns `lat` and `lon` fields |
-| 3B.4 | Create `GET /api/active-locations` — returns lat/long for sessions active in last 5 minutes | B | ⬜ | Query events WHERE ts > NOW() - INTERVAL '5 minutes' |
-| 3B.5 | Build Live Geo Map component — Leaflet map with pulsing circle markers | B | ⬜ | CSS animation: `@keyframes pulse` on circle marker |
-| 3B.6 | Poll `GET /api/active-locations` every 10 seconds — update markers | B | ⬜ | Or use Redis Pub/Sub push via SSE |
-| 3B.7 | Dots fade out after 30 seconds of inactivity | B | ⬜ | Track `lastSeen` per session in component state |
+| 3B.1 | Install Leaflet.js + react-leaflet | B | ✅ | `npm i leaflet react-leaflet` |
+| 3B.2 | Set up dark tile layer (CartoDB dark matter tiles — free, no key) | B | ✅ | `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png` |
+| 3B.3 | Fetch lat/long from Geo-IP lookup — store on event or look up on-demand | B | ✅ | ip-api.com returns `lat` and `lon` fields |
+| 3B.4 | Create `GET /api/active-locations` — returns lat/long for sessions active in last 5 minutes | B | ✅ | Query events WHERE ts > NOW() - INTERVAL '5 minutes' |
+| 3B.5 | Build Live Geo Map component — Leaflet map with pulsing circle markers | B | ✅ | CSS animation: `@keyframes pulse` on circle marker |
+| 3B.6 | Poll `GET /api/active-locations` every 10 seconds — update markers | B | ✅ | Or use Redis Pub/Sub push via SSE |
+| 3B.7 | Dots fade out after 30 seconds of inactivity | B | ✅ | Track `lastSeen` per session in component state |
 
 ---
 
@@ -218,16 +218,16 @@
 
 | # | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| 3C.1 | **Heatmap XAI Opinion** — call Gemini with click distribution stats | C | ⬜ | `POST /api/heatmap/opinion` ✅ already built |
-| 3C.2 | Render XAI Opinion as callout card below canvas — confidence + reasoning | C | ⬜ | "76% of clicks are top-left. Your CTA is being ignored." |
-| 3C.3 | Funnel creation UI — dynamic form (add/remove URL steps) | C | ⬜ | POST to /api/funnels |
-| 3C.4 | Wire Funnel Health Bar to real analysis data | C | ⬜ | Green/yellow/red per step |
-| 3C.5 | **Framer Motion transitions** — subtle float/fade between tabs | C | ⬜ | Layout wrapper keeps bg gradient consistent |
-| 3C.6 | **Live Feed Polish** — Lucide icons (👁 pageview, 🖱 click), auto-scroll | C | ⬜ | Lean frontend for Lighthouse ≥ 95 |
-| 3C.7 | **Empty states** — "Waiting for events..." with animated crimson pulse | C | ⬜ | On obsidian bg |
-| 3C.8 | Mobile/tablet responsiveness pass | C | ⬜ | Not scored but shows polish |
-| 3C.9 | **"Reconstruction" Hero Landing Page** | C | ⬜ | See below |
-| 3C.10 | **Session Narratives UI** — scrollable list, click → expand XAI narrative | C | ⬜ | Shows intent + confidence + reasoning |
+| 3C.1 | **Heatmap XAI Opinion** — call Gemini with click distribution stats | C | ✅ | `POST /api/heatmap/opinion` wired in heatmap page |
+| 3C.2 | Render XAI Opinion as callout card below canvas — confidence + reasoning | C | ✅ | Sidebar card with AI insights |
+| 3C.3 | Funnel creation UI — dynamic form (add/remove URL steps) | C | ✅ | Full CRUD with validation |
+| 3C.4 | Wire Funnel Health Bar to real analysis data | C | ✅ | Color-coded bars from `/api/funnels/:id/analysis` |
+| 3C.5 | **Framer Motion transitions** — subtle float/fade between tabs | C | ✅ | `PageTransition.tsx` with blur-in + float-up |
+| 3C.6 | **Live Feed Polish** — Lucide icons (👁 pageview, 🖱 click), auto-scroll | C | ✅ | `LiveFeed.tsx` with auto-scroll + polling |
+| 3C.7 | **Empty states** — "Waiting for events..." with animated crimson pulse | C | ✅ | Pulsing dot on obsidian bg |
+| 3C.8 | Mobile/tablet responsiveness pass | C | ✅ | Responsive TopNav, hidden PhaseTracker on mobile, scaled padding |
+| 3C.9 | **"Reconstruction" Hero Landing Page** | C | ✅ | Built with scroll animation + crimson theme |
+| 3C.10 | **Session Narratives UI** — scrollable list, click → expand XAI narrative | C | ✅ | Device/country/journey + Gemini narrative |
 
 **3C.9 Landing Page Spec (from Person C PRD):**
 - Floating, 3D "Anti-Gravity" crystalline node = the Collector Script
@@ -264,22 +264,22 @@
 
 | System | Feature | Status |
 |---|---|---|
-| **Tracker** | < 5KB JS snippet | ⬜ |
-| **Tracker** | sendBeacon non-blocking | ⬜ |
-| **Tracker** | Click + Pageview capture | ⬜ |
-| **Ingestion** | Dual-write pipeline | ⬜ |
-| **Ingestion** | Session hash (privacy-first) | ⬜ |
-| **Ingestion** | Geo-IP lookup | ⬜ |
-| **Ingestion** | Bot filtering (3 layers) | ⬜ |
-| **Dashboard** | Mission Control layout | ⬜ |
-| **Dashboard** | Annotated line chart with spike labels | ⬜ |
-| **Dashboard** | Live event feed (Redis+SSE) | ⬜ |
-| **Dashboard** | AI Signal Cards | ⬜ |
-| **Dashboard** | Funnel engine + drop-off chart | ⬜ |
-| **Dashboard** | Heatmap canvas | ⬜ |
-| **Dashboard** | Heatmap AI Opinion | ⬜ |
-| **Dashboard** | Session Narratives | ⬜ |
-| **Dashboard** | Live Geo Map | ⬜ |
+| **Tracker** | < 5KB JS snippet | ✅ |
+| **Tracker** | sendBeacon non-blocking | ✅ |
+| **Tracker** | Click + Pageview capture | ✅ |
+| **Ingestion** | Dual-write pipeline | ✅ |
+| **Ingestion** | Session hash (privacy-first) | ✅ |
+| **Ingestion** | Geo-IP lookup | ✅ |
+| **Ingestion** | Bot filtering (3 layers) | ✅ |
+| **Dashboard** | Mission Control layout | ✅ |
+| **Dashboard** | Annotated line chart with spike labels | ✅ |
+| **Dashboard** | Live event feed (Redis+SSE) | ✅ |
+| **Dashboard** | AI Signal Cards | ✅ |
+| **Dashboard** | Funnel engine + drop-off chart | ✅ |
+| **Dashboard** | Heatmap canvas | ✅ |
+| **Dashboard** | Heatmap AI Opinion | ✅ |
+| **Dashboard** | Session Narratives | ✅ |
+| **Dashboard** | Live Geo Map | ✅ |
 | **Deploy** | Vercel production deploy | ⬜ |
 | **Deploy** | Demo test site live | ⬜ |
 | **Demo** | Lighthouse ≥ 95 confirmed | ⬜ |

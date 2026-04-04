@@ -38,6 +38,7 @@ model Event {
   sessionHash String?  @map("session_hash")
   uaRaw       String?  @map("ua_raw")
   isBot       Boolean  @default(false)  @map("is_bot")
+  isBotHoneypot Boolean @default(false) @map("is_bot_honeypot")
   ts          DateTime @default(now())
 
   @@index([siteId, ts])

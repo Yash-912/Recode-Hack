@@ -1,42 +1,212 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Insight-OS Test Analytics</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nimbus Serverless | Homepage</title>
   <style>
-    body { font-family: system-ui, sans-serif; padding: 2rem; background: #111; color: #fff; }
-    button { padding: 1rem 2rem; font-size: 1rem; cursor: pointer; background: #2563eb; color: white; border: none; border-radius: 4px; }
-    #log { margin-top: 2rem; padding: 1rem; background: #1e1e1e; border-radius: 8px; font-family: monospace; font-size: 0.85rem; max-height: 300px; overflow-y: auto; }
-    .entry { padding: 4px 0; border-bottom: 1px solid #333; }
+    :root {
+      --bg: #FAFAFA;
+      --text: #111;
+      --accent: #2563EB;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0A0A0B;
+        --text: #FAFAFA;
+        --accent: #3B82F6;
+      }
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+    /* Header */
+    header {
+      width: 100%;
+      border-bottom: 1px solid rgba(128,128,128,0.2);
+      backdrop-filter: blur(8px);
+      position: fixed;
+      top: 0;
+      z-index: 100;
+    }
+    nav {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo { font-weight: 800; font-size: 1.25rem; letter-spacing: -0.5px; }
+    .nav-links a {
+      margin-left: 2rem;
+      text-decoration: none;
+      color: var(--text);
+      opacity: 0.7;
+      font-weight: 500;
+      transition: opacity 0.2s;
+    }
+    .nav-links a:hover { opacity: 1; }
+    
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 10rem 2rem 5rem;
+      max-width: 800px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border: 1px solid rgba(128,128,128,0.3);
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      margin-bottom: 2rem;
+      font-weight: 500;
+    }
+    h1 {
+      font-size: 4.5rem;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -2px;
+      margin: 0 0 1.5rem;
+      background: linear-gradient(to right bottom, var(--text), #666);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p.subtitle {
+      font-size: 1.25rem;
+      opacity: 0.7;
+      line-height: 1.6;
+      margin-bottom: 3rem;
+    }
+    .cta-group {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+    .btn {
+      padding: 0.85rem 1.75rem;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    .btn-primary {
+      background-color: var(--text);
+      color: var(--bg);
+    }
+    .btn-primary:active { transform: scale(0.96); }
+    .btn-secondary {
+      background-color: transparent;
+      color: var(--text);
+      border: 1px solid rgba(128,128,128,0.3);
+    }
+    .btn-secondary:hover { background-color: rgba(128,128,128,0.1); }
+
+    /* Features Grid */
+    .features {
+      max-width: 1200px;
+      padding: 4rem 2rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .feature-card {
+      padding: 2.5rem;
+      border-radius: 16px;
+      border: 1px solid rgba(128,128,128,0.2);
+      background-color: rgba(128,128,128,0.02);
+      transition: border-color 0.3s;
+    }
+    .feature-card:hover {
+      border-color: rgba(128,128,128,0.5);
+    }
+    .f-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--accent);
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      opacity: 0.8;
+    }
+    
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding: 4rem 2rem;
+      text-align: center;
+      opacity: 0.5;
+      font-size: 0.875rem;
+      border-top: 1px solid rgba(128,128,128,0.2);
+      width: 100%;
+    }
   </style>
 </head>
 <body>
-  <h1>Insight-OS Tracker Verification</h1>
-  <p>The tracker snippet is loaded. A <code>pageview</code> event has already been sent.</p>
-  <p>Click anywhere on the screen to test <code>click</code> tracking.</p>
-  <button>Test Click Event</button>
-  <div id="log"><strong>Event Log:</strong></div>
+  
+  <header>
+    <nav>
+      <div class="logo">Nimbus</div>
+      <div class="nav-links">
+        <a href="#">Products</a>
+        <a href="#">Docs</a>
+        <a href="/demo/pricing.html">Pricing</a>
+      </div>
+    </nav>
+  </header>
 
-  <!-- Cache-busted tracker load -->
-  <script
-    src="/tracker.js?v=2"
-    data-site="test-site-id"
-    data-endpoint="http://localhost:3000/api/collect"
+  <main>
+    <section class="hero">
+      <div class="badge">✨ Announcing Global Edge Functions</div>
+      <h1>Deploy to the edge in milliseconds.</h1>
+      <p class="subtitle">Nimbus is the serverless execution environment designed for the modern web. Push your code directly to 30+ geographic regions instantly.</p>
+      
+      <div class="cta-group">
+        <a href="/demo/pricing.html" class="btn btn-primary">Start for free</a>
+        <a href="#" class="btn btn-secondary">Read Documentation</a>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="feature-card">
+        <div class="f-icon"></div>
+        <h3>Zero Configuration</h3>
+        <p style="opacity:0.7; line-height:1.5;">Just connect your GitHub repository and we handle the containerization and geographic routing automatically.</p>
+      </div>
+      <div class="feature-card">
+        <div class="f-icon" style="background:#ef4444"></div>
+        <h3>Instant Rollbacks</h3>
+        <p style="opacity:0.7; line-height:1.5;">Made a mistake? Revert your immutable deployments to a previous state instantly with zero downtime.</p>
+      </div>
+      <div class="feature-card">
+        <div class="f-icon" style="background:#10b981"></div>
+        <h3>Infinite Scale</h3>
+        <p style="opacity:0.7; line-height:1.5;">Our fleet handles traffic spikes by dynamically allocating v8 isolates without cold starts.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    &copy; 2026 Nimbus Inc. All rights reserved.
+  </footer>
+
+  <!-- ========================================== -->
+  <!-- INSIGHT-OS DEMO TRACKER SCRIPT -->
+  <!-- ========================================== -->
+  <script 
+    defer 
+    data-site="test-site-id" 
+    src="/tracker.js?v=4"
   ></script>
 
-  <script>
-    // Visual feedback for clicks
-    document.addEventListener('click', function(e) {
-      var log = document.getElementById('log');
-      var entry = document.createElement('div');
-      entry.className = 'entry';
-      entry.textContent = new Date().toLocaleTimeString() + ' — click at (' + 
-        Math.round(e.clientX/window.innerWidth*100) + '%, ' + 
-        Math.round(e.clientY/window.innerHeight*100) + '%)';
-      log.appendChild(entry);
-      log.scrollTop = log.scrollHeight;
-    });
-  </script>
 </body>
 </html>

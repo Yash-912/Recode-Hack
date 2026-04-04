@@ -6,9 +6,9 @@
 (function () {
   'use strict';
 
-  // Capture script element at parse time (before async defer moves it)
+  // Capture script element reliably regardless of async/defer injection order
   var scripts = document.getElementsByTagName('script');
-  var currentScript = scripts[scripts.length - 1];
+  var currentScript = document.currentScript || scripts[scripts.length - 1];
 
   var siteId = currentScript.getAttribute('data-site');
   if (!siteId) return;
@@ -16,6 +16,8 @@
   var endpoint =
     currentScript.getAttribute('data-endpoint') ||
     new URL('/api/collect', currentScript.src || location.origin).href;
+
+  var isBotHoneypot = false;
 
   function send(payload) {
     var data = JSON.stringify({
@@ -28,6 +30,7 @@
       type: payload.type,
       x_pct: payload.x_pct || null,
       y_pct: payload.y_pct || null,
+      is_bot_honeypot: isBotHoneypot || payload.is_bot_honeypot || false,
     });
 
     // sendBeacon — fire-and-forget, never blocks main thread
@@ -50,9 +53,25 @@
     });
   }
 
-  // ─── Deferred setup for non-critical listeners ───────────
+  // ─── Deferred setup for non-critical listeners & Honeypot ─
   function init() {
     document.addEventListener('click', trackClick, { passive: true });
+    
+    // Inject hidden DOM Honeypot for bot crawlers
+    var hp = document.createElement('a');
+    hp.id = 'sys-v-check';
+    hp.href = '#';
+    hp.style.position = 'absolute';
+    hp.style.left = '-9999px';
+    hp.style.opacity = '0';
+    hp.setAttribute('aria-hidden', 'true');
+    hp.tabIndex = -1;
+    document.body.appendChild(hp);
+    
+    hp.addEventListener('click', function(e) {
+      isBotHoneypot = true;
+      send({ type: 'click', is_bot_honeypot: true });
+    }, { passive: true });
   }
 
   if (document.readyState === 'complete') {

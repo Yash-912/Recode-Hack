@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getMarkovProbabilities } from '@/lib/markov';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,7 +64,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       previousSessions = currentCount;
     }
 
-    return NextResponse.json({ analysis: results });
+    // Run Markov calculation in parallel or sequentially
+    const transitionProbabilities = await getMarkovProbabilities(siteId, steps, windowDate);
+
+    return NextResponse.json({ 
+      analysis: results,
+      transitionProbabilities
+    });
 
   } catch (error) {
     console.error('[API Funnel Analysis] Error:', error);

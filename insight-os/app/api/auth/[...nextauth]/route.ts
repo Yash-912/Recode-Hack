@@ -1,34 +1,31 @@
-// ─── NextAuth Configuration ────────────────────────────────
-// Credentials provider for hackathon demo (email + password)
-
-import NextAuth from 'next-auth';
+import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        email: { label: 'Email', type: 'email', placeholder: 'admin@insightos.app' },
+        email: { label: 'Email', type: 'text', placeholder: 'admin@insight.os' },
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        // Demo auth — in production, check against a real user table
-        if (
-          credentials?.email === 'admin@insightos.app' &&
-          credentials?.password === 'insight2026'
-        ) {
-          return { id: '1', name: 'Admin', email: 'admin@insightos.app' };
+        if (credentials?.email === 'admin@insight.os' && credentials?.password === 'admin') {
+          return { id: '1', name: 'Admin', email: 'admin@insight.os' };
         }
         return null;
       },
     }),
   ],
-  session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',
   },
-  secret: process.env.NEXTAUTH_SECRET,
-});
+  session: {
+    strategy: 'jwt',
+  },
+  secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-demo',
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };

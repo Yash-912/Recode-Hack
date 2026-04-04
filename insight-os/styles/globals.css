@@ -1,19 +1,31 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
+
+  --color-obsidian: #000000;
+  --color-obsidian-light: #0d0d0d;
+  --color-crimson: #2D0505;
+  --color-crimson-bright: #DC2626;
+  --color-crimson-glow: #991B1B;
+}
+
 /* ─── Mission Control Design Tokens ────────────────────── */
 :root {
-  --bg-primary: #0F172A;
-  --bg-secondary: #1E293B;
-  --bg-card: #1E293B;
-  --border: #334155;
-  --text-primary: #F1F5F9;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
+  --bg-primary: #000000; /* Deep obsidian */
+  --bg-secondary: #0a0a0a;
+  --bg-card: rgba(18, 18, 18, 0.6);
+  --border: #222222;
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --text-muted: #525252;
   --accent-blue: #3B82F6;
   --accent-green: #22C55E;
   --accent-yellow: #EAB308;
-  --accent-red: #EF4444;
+  --accent-red: #EF4444; /* Pulse red */
   --accent-purple: #A855F7;
+  --gradient-radial: radial-gradient(circle at center, #2D0505 0%, #000000 70%);
 }
 
 /* ─── Base Styles ──────────────────────────────────────── */
@@ -22,9 +34,11 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--bg-primary);
+  background-image: var(--gradient-radial);
   color: var(--text-primary);
+  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

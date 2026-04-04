@@ -1,8 +1,13 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import crypto from 'crypto';
+import dotenv from 'dotenv';
 
-const prisma = new PrismaClient();
-const SITE_ID = 'demo-123'; // Matches standard demo site ID
+dotenv.config();
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter } as any);
+const SITE_ID = 'test-site-id'; // Must match dashboard hardcoded site ID
 
 async function main() {
   console.log(`Seeding database for site: ${SITE_ID}...`);

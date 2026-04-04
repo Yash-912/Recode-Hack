@@ -16,6 +16,7 @@ const payloadSchema = z.object({
   y_pct: z.number().nullable().optional(),
   screen_w: z.number().optional(),
   screen_h: z.number().optional(),
+  is_bot_honeypot: z.boolean().optional(),
   ts: z.number(),
 }).passthrough();
 
@@ -122,7 +123,8 @@ export async function POST(req: Request) {
           country: geoData?.country || null,
           sessionHash: sessionHash,
           uaRaw: ua,
-          isBot: botCheck.isBot,
+          isBot: botCheck.isBot || (payload.is_bot_honeypot === true),
+          isBotHoneypot: payload.is_bot_honeypot || false,
         }
       }),
 
